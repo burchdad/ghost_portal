@@ -40,7 +40,7 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
 
         <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
           <Card>
-            <SectionHeader title="Assigned Work" href="/tasks" action="View all" />
+            <SectionHeader title={snapshot.scope.assignedWorkTitle} href="/tasks" action="View all" />
             <div className="mt-4 space-y-3">
               {snapshot.tasks.length === 0 ? <EmptyState text="No active assigned tasks." /> : null}
               {snapshot.tasks.map((task) => (
@@ -61,18 +61,18 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
           </Card>
 
           <Card>
-            <SectionHeader title="Trial Progress" href="/onboarding" action="Open" />
+            <SectionHeader title={snapshot.scope.progressTitle} href="/onboarding" action="Open" />
             <div className="mt-5">
               <div className="flex items-end justify-between">
                 <span className="text-5xl font-semibold">{snapshot.onboardingPercent}%</span>
-                <span className="text-sm text-white/48">Onboarding</span>
+                <span className="text-sm text-white/48">{snapshot.scope.progressLabel}</span>
               </div>
               <div className="mt-4 h-2 rounded-full bg-white/10">
                 <div className="h-2 rounded-full bg-accent" style={{ width: `${snapshot.onboardingPercent}%` }} />
               </div>
-              <p className="mt-4 text-sm text-white/52">{snapshot.hoursThisWeek} hours submitted this week.</p>
+              <p className="mt-4 text-sm text-white/52">{snapshot.scope.hoursLabel}</p>
               <Button asChild className="mt-5 w-full" variant="accent">
-                <Link href="/daily-reports/new">Submit end-of-day report</Link>
+                <Link href={snapshot.scope.progressHref}>{snapshot.scope.progressAction}</Link>
               </Button>
             </div>
           </Card>
@@ -86,7 +86,7 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
 
         <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
           <Card>
-            <SectionHeader title="Waiting on Stephen" href="/approvals" action="Review" />
+            <SectionHeader title={snapshot.scope.approvalsTitle} href="/approvals" action="Review" />
             <div className="mt-4 space-y-3">
               {snapshot.approvals.length === 0 ? <EmptyState text="No open approvals in your scope." /> : null}
               {snapshot.approvals.map((approval) => (
@@ -102,6 +102,7 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
           <Card>
             <SectionHeader title="Activity Timeline" href="/admin/audit-log" action="Audit" />
             <div className="mt-4 space-y-3">
+              {snapshot.activity.length === 0 ? <EmptyState text={snapshot.scope.activityEmpty} /> : null}
               {snapshot.activity.map((event) => (
                 <div key={`${event.actor}-${event.time}-${event.target}`} className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/14 px-4 py-3">
                   <div className="size-2 rounded-full bg-accent" />

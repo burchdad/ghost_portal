@@ -1,9 +1,21 @@
 import type { SessionUser } from "@/server/permissions/authorize";
+import { getTrialSubjectForViewer } from "@/server/data/trial-subject";
 import { getPrisma } from "@/server/db/prisma";
 import { hasPermission } from "@/server/permissions/roles";
 
 export type DashboardSnapshot = {
   greeting: string;
+  scope: {
+    subjectName: string;
+    assignedWorkTitle: string;
+    progressTitle: string;
+    progressLabel: string;
+    hoursLabel: string;
+    progressAction: string;
+    progressHref: string;
+    approvalsTitle: string;
+    activityEmpty: string;
+  };
   onboardingPercent: number;
   priorities: Array<{ label: string; detail: string; status: "urgent" | "active" | "steady" }>;
   tasks: Array<{ id: string; title: string; owner: string; due: string; state: string; priority: string }>;
@@ -19,11 +31,14 @@ export type DashboardSnapshot = {
 export async function getDashboardSnapshot(user: SessionUser): Promise<DashboardSnapshot> {
   const prisma = getPrisma();
   const now = new Date();
+  const trialSubject = await getTrialSubjectForViewer(user);
+  const subjectName = trialSubject.preferredName ?? trialSubject.name;
+  const isFounderView = user.role === "Founder";
   const canSeeAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
 
   const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows] = await Promise.all([
     prisma.task.findMany({
-      where: user.role === "Founder" ? { archivedAt: null } : { ownerId: user.id, archivedAt: null },
+      where: { ownerId: trialSubject.id, archivedAt: null },
       include: { owner: true },
       orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
       take: 8
@@ -74,10 +89,10 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
       take: 5
     }),
     prisma.onboardingModule.count({ where: { published: true } }),
-    prisma.onboardingCompletion.count({ where: { userId: user.id } }),
+    prisma.onboardingCompletion.count({ where: { userId: trialSubject.id } }),
     prisma.dailyReport.findMany({
       where: {
-        userId: user.id,
+        userId: trialSubject.id,
         reportDate: {
           gte: startOfWeekUtc(now)
         }
@@ -96,8 +111,19 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
 
   return {
     greeting: greetingForTimezone(user.timezone),
+    scope: {
+      subjectName,
+      assignedWorkTitle: isFounderView ? `${subjectName}'s assigned work` : "My assigned work",
+      progressTitle: isFounderView ? `${subjectName}'s onboarding progress` : "My onboarding progress",
+      progressLabel: isFounderView ? `${subjectName}'s onboarding` : "My onboarding",
+      hoursLabel: isFounderView ? `${subjectName} has submitted ${hoursThisWeek} hours this week.` : `My submitted hours: ${hoursThisWeek} this week.`,
+      progressAction: isFounderView ? "Review daily reports" : "Submit end-of-day report",
+      progressHref: isFounderView ? "/daily-reports" : "/daily-reports/new",
+      approvalsTitle: isFounderView ? "Waiting on Stephen" : "Waiting on Stephen",
+      activityEmpty: isFounderView ? "No team activity has been recorded yet." : "No activity has been recorded for your workspace yet."
+    },
     onboardingPercent,
-    priorities: buildPriorities(taskRows.filter((task) => task.dueDate && task.dueDate < now).length, approvalRows.length, onboardingPercent),
+    priorities: buildPriorities(taskRows.filter((task) => task.dueDate && task.dueDate < now).length, approvalRows.length, onboardingPercent, isFounderView ? subjectName : undefined),
     tasks: taskRows.map((task) => ({
       id: task.id,
       title: task.title,
@@ -143,25 +169,31 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
 
 export async function buildNovaSummary(user: SessionUser) {
   const prisma = getPrisma();
+  const trialSubject = await getTrialSubjectForViewer(user);
+  const subjectName = trialSubject.preferredName ?? trialSubject.name;
   const taskCount = await prisma.task.count({
-    where: user.role === "Founder" ? { archivedAt: null } : { ownerId: user.id, archivedAt: null }
+    where: user.role === "Founder" ? { ownerId: trialSubject.id, archivedAt: null } : { ownerId: user.id, archivedAt: null }
   });
   const approvalCount = await prisma.approval.count({
     where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id, status: { in: ["Open", "InReview"] } }
   });
 
   if (user.role === "Founder") {
-    return `You have ${approvalCount} open decision items and ${taskCount} visible active tasks. Review approvals, Alex's trial progress, and recent audit activity before assigning new work.`;
+    return `You have ${approvalCount} open decision items and ${taskCount} visible active tasks for ${subjectName}. Review approvals, ${subjectName}'s trial progress, and recent audit activity before assigning new work.`;
   }
 
   return `You have ${taskCount} assigned active tasks and ${approvalCount} open requests waiting on Stephen. Focus on onboarding, due tasks, and your end-of-day report.`;
 }
 
-function buildPriorities(overdueTasks: number, approvals: number, onboardingPercent: number): DashboardSnapshot["priorities"] {
+function buildPriorities(overdueTasks: number, approvals: number, onboardingPercent: number, subjectName?: string): DashboardSnapshot["priorities"] {
+  const onboardingDetail = subjectName
+    ? `Track ${subjectName}'s required trial modules before operational handoff.`
+    : "Complete required trial modules before operational handoff.";
+
   return [
     { label: `${overdueTasks} overdue tasks`, detail: "Review due dates and unblock active work.", status: overdueTasks > 0 ? "urgent" : "steady" },
     { label: `${approvals} open approvals`, detail: "Keep Waiting on Stephen from becoming a bottleneck.", status: approvals > 0 ? "active" : "steady" },
-    { label: `${onboardingPercent}% onboarding`, detail: "Complete required trial modules before operational handoff.", status: onboardingPercent < 100 ? "active" : "steady" }
+    { label: `${onboardingPercent}% onboarding`, detail: onboardingDetail, status: onboardingPercent < 100 ? "active" : "steady" }
   ];
 }
 

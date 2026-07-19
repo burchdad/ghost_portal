@@ -31,6 +31,12 @@ const prismaMock = {
   },
   activity: {
     findMany: vi.fn()
+  },
+  trialSettings: {
+    findFirst: vi.fn()
+  },
+  user: {
+    findFirst: vi.fn()
   }
 };
 
@@ -48,9 +54,29 @@ const user: SessionUser = {
   timezone: "Asia/Manila"
 };
 
+const founder: SessionUser = {
+  id: "user_stephen",
+  name: "Stephen Burch",
+  preferredName: "Stephen",
+  email: "stephen@ghostai.solutions",
+  role: "Founder",
+  status: "Active",
+  timezone: "America/Chicago"
+};
+
 describe("dashboard snapshot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prismaMock.trialSettings.findFirst.mockResolvedValue({
+      user: {
+        id: "user_alex",
+        name: "Alexandra Marie Canto",
+        preferredName: "Alex",
+        email: "amariexc@gmail.com",
+        timezone: "Asia/Manila"
+      }
+    });
+    prismaMock.user.findFirst.mockResolvedValue(null);
     prismaMock.task.findMany.mockResolvedValue([
       {
         id: "task_1",
@@ -93,5 +119,32 @@ describe("dashboard snapshot", () => {
     expect(snapshot.tasks[0]?.due).toContain("2026");
     expect(snapshot.approvals[0]?.deadline).toContain("2026");
     expect(snapshot.activity[0]?.time).toContain("2026");
+  });
+
+  it("keeps Operations dashboard wording learner-scoped", async () => {
+    const snapshot = await getDashboardSnapshot(user);
+
+    expect(snapshot.scope.assignedWorkTitle).toBe("My assigned work");
+    expect(snapshot.scope.progressTitle).toBe("My onboarding progress");
+    expect(snapshot.scope.hoursLabel).toBe("My submitted hours: 4.0 this week.");
+    expect(snapshot.scope.progressAction).toBe("Submit end-of-day report");
+    expect(snapshot.scope.progressHref).toBe("/daily-reports/new");
+  });
+
+  it("scopes Founder dashboard wording and trial metrics to Alex", async () => {
+    const snapshot = await getDashboardSnapshot(founder);
+
+    expect(snapshot.scope.assignedWorkTitle).toBe("Alex's assigned work");
+    expect(snapshot.scope.progressTitle).toBe("Alex's onboarding progress");
+    expect(snapshot.scope.hoursLabel).toBe("Alex has submitted 4.0 hours this week.");
+    expect(snapshot.scope.progressAction).toBe("Review daily reports");
+    expect(snapshot.scope.progressHref).toBe("/daily-reports");
+    expect(prismaMock.task.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { ownerId: "user_alex", archivedAt: null }
+    }));
+    expect(prismaMock.onboardingCompletion.count).toHaveBeenCalledWith({ where: { userId: "user_alex" } });
+    expect(prismaMock.dailyReport.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "user_alex" })
+    }));
   });
 });

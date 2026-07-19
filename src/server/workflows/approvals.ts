@@ -4,6 +4,7 @@ import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { canAccessClient, canAccessLead, requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
+import { recordActivity } from "@/server/workflows/activity";
 
 export const createApprovalSchema = z.object({
   summary: z.string().min(3),
@@ -42,13 +43,16 @@ export async function createApprovalRequest(input: unknown) {
     }
   });
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "approval.requested",
-    entity: "Approval",
-    entityId: approval.id,
-    after: { summary: approval.summary, status: approval.status }
-  });
+  await Promise.all([
+    recordActivity({ actorId: user.id, action: "requested approval", target: approval.summary }),
+    writeAuditLog({
+      userId: user.id,
+      action: "approval.requested",
+      entity: "Approval",
+      entityId: approval.id,
+      after: { summary: approval.summary, status: approval.status }
+    })
+  ]);
 
   return approval;
 }
@@ -91,14 +95,17 @@ export async function decideApproval(approvalId: string, decision: "Approved" | 
     }
   });
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "approval.decided",
-    entity: "Approval",
-    entityId: approvalId,
-    before: { status: approval.status },
-    after: { status: updated.status, decisionNotes }
-  });
+  await Promise.all([
+    recordActivity({ actorId: user.id, action: "decided approval", target: `${updated.summary}: ${updated.status}` }),
+    writeAuditLog({
+      userId: user.id,
+      action: "approval.decided",
+      entity: "Approval",
+      entityId: approvalId,
+      before: { status: approval.status },
+      after: { status: updated.status, decisionNotes }
+    })
+  ]);
 
   return updated;
 }

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { canAccessClient, canAccessLead, requireUser } from "@/server/permissions/authorize";
+import { recordActivity } from "@/server/workflows/activity";
 import { createNotification } from "@/server/workflows/notifications";
 
 const draftSchema = z.object({
@@ -56,13 +57,20 @@ export async function createDraftCommunicationAction(formData: FormData) {
     await createNotification({ userId: founder.id, title: "Draft communication awaiting review", href: `/communications/${draft.id}` });
   }
 
-  await writeAuditLog({
-    userId: user.id,
-    action: parsed.submitForApproval ? "draft_communication.submitted" : "draft_communication.created",
-    entity: "DraftCommunication",
-    entityId: draft.id,
-    after: { status: draft.status, channel: draft.channel }
-  });
+  await Promise.all([
+    recordActivity({
+      actorId: user.id,
+      action: parsed.submitForApproval ? "submitted communication" : "drafted communication",
+      target: draft.subject ?? `${draft.channel} to ${draft.recipient}`
+    }),
+    writeAuditLog({
+      userId: user.id,
+      action: parsed.submitForApproval ? "draft_communication.submitted" : "draft_communication.created",
+      entity: "DraftCommunication",
+      entityId: draft.id,
+      after: { status: draft.status, channel: draft.channel }
+    })
+  ]);
 
   revalidatePath("/communications");
   redirect(`/communications/${draft.id}`);
@@ -98,6 +106,7 @@ export async function decideDraftCommunicationAction(formData: FormData) {
 
   await Promise.all([
     createNotification({ userId: draft.authorId, title: "Draft communication reviewed", body: parsed.decision, href: `/communications/${draft.id}` }),
+    recordActivity({ actorId: user.id, action: "reviewed communication", target: `${draft.subject ?? draft.channel}: ${updated.status}` }),
     writeAuditLog({
       userId: user.id,
       action: "draft_communication.decided",
@@ -130,7 +139,10 @@ export async function markDraftCommunicationSentAction(formData: FormData) {
     }
   });
 
-  await writeAuditLog({ userId: user.id, action: "draft_communication.manual_sent", entity: "DraftCommunication", entityId: draftId, after: { outcome } });
+  await Promise.all([
+    recordActivity({ actorId: user.id, action: "marked communication sent", target: draft.subject ?? `${draft.channel} to ${draft.recipient}` }),
+    writeAuditLog({ userId: user.id, action: "draft_communication.manual_sent", entity: "DraftCommunication", entityId: draftId, after: { outcome } })
+  ]);
   revalidatePath(`/communications/${draftId}`);
 }
 

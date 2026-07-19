@@ -4,6 +4,7 @@ import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
+import { recordActivity } from "@/server/workflows/activity";
 import { createNotification } from "@/server/workflows/notifications";
 
 export const dailyReportSchema = z.object({
@@ -91,13 +92,20 @@ export async function submitDailyReport(input: unknown) {
     }
   });
 
-  await writeAuditLog({
-    userId: user.id,
-    action: report.submit ? "daily_report.submitted" : "daily_report.saved",
-    entity: "DailyReport",
-    entityId: saved.id,
-    after: { status: saved.status, reportDate: saved.reportDate.toISOString() }
-  });
+  await Promise.all([
+    recordActivity({
+      actorId: user.id,
+      action: report.submit ? "submitted daily report" : "saved daily report",
+      target: saved.reportDate.toISOString().slice(0, 10)
+    }),
+    writeAuditLog({
+      userId: user.id,
+      action: report.submit ? "daily_report.submitted" : "daily_report.saved",
+      entity: "DailyReport",
+      entityId: saved.id,
+      after: { status: saved.status, reportDate: saved.reportDate.toISOString() }
+    })
+  ]);
 
   return saved;
 }
@@ -154,6 +162,7 @@ export async function reviewDailyReportAction(formData: FormData) {
 
   await Promise.all([
     createNotification({ userId: report.userId, title: "Daily report reviewed", body: parsed.status, href: `/daily-reports/${report.id}` }),
+    recordActivity({ actorId: user.id, action: "reviewed daily report", target: `${report.reportDate.toISOString().slice(0, 10)}: ${updated.status}` }),
     writeAuditLog({
       userId: user.id,
       action: "daily_report.reviewed",
