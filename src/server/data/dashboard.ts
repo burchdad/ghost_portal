@@ -166,7 +166,7 @@ function buildPriorities(overdueTasks: number, approvals: number, onboardingPerc
 }
 
 function greetingForTimezone(timezone: string) {
-  const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: timezone }).format(new Date()));
+  const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: safeTimezone(timezone) }).format(new Date()));
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
@@ -175,11 +175,23 @@ function greetingForTimezone(timezone: string) {
 function formatDate(date: Date | null, timezone: string) {
   if (!date) return "No date";
   return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: timezone,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: safeTimezone(timezone),
     timeZoneName: "short"
   }).format(date);
+}
+
+function safeTimezone(timezone: string) {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: timezone });
+    return timezone;
+  } catch {
+    return "UTC";
+  }
 }
 
 function startOfWeekUtc(date: Date) {
