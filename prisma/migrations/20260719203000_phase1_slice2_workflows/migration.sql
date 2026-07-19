@@ -2,7 +2,7 @@
 ALTER TABLE "Task" ADD COLUMN     "leadId" TEXT;
 
 -- AlterTable
-ALTER TABLE "OnboardingModule" ADD COLUMN     "visibleToRoles" "RoleName"[];
+ALTER TABLE "OnboardingModule" ADD COLUMN     "visibleToRoles" "RoleName"[] DEFAULT ARRAY[]::"RoleName"[];
 
 -- AlterTable
 ALTER TABLE "FileAsset" ADD COLUMN     "approvalId" TEXT,

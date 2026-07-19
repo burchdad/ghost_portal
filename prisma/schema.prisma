@@ -415,7 +415,7 @@ model OnboardingModule {
   required    Boolean                 @default(true)
   sortOrder   Int
   published   Boolean                 @default(true)
-  visibleToRoles RoleName[]
+  visibleToRoles RoleName[]              @default([])
   completions OnboardingCompletion[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt

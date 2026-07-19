@@ -26,6 +26,14 @@ export async function createApprovalRequest(input: unknown) {
 
   if (parsed.clientId && !(await canAccessClient(user, parsed.clientId))) throw new Error("Forbidden: client");
   if (parsed.leadId && !(await canAccessLead(user, parsed.leadId))) throw new Error("Forbidden: lead");
+  if (parsed.taskId) {
+    const task = await getPrisma().task.findUnique({ where: { id: parsed.taskId } });
+    if (!task || (user.role !== "Founder" && task.ownerId !== user.id)) throw new Error("Forbidden: task");
+  }
+  if (parsed.draftCommunicationId) {
+    const draft = await getPrisma().draftCommunication.findUnique({ where: { id: parsed.draftCommunicationId } });
+    if (!draft || (user.role !== "Founder" && draft.authorId !== user.id)) throw new Error("Forbidden: draft communication");
+  }
 
   const approval = await getPrisma().approval.create({
     data: {
