@@ -1,17 +1,18 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Bot, Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { loginAction } from "@/server/auth/actions";
 import { Button } from "@/components/ui/button";
 
-export function LoginForm() {
+type LoginFormProps = {
+  redirectTo: string;
+  reason?: string;
+};
+
+export function LoginForm({ redirectTo, reason }: LoginFormProps) {
   const [state, action, pending] = useActionState(loginAction, undefined);
   const [showPassword, setShowPassword] = useState(false);
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
-  const reason = searchParams.get("reason");
 
   return (
     <main className="grid min-h-screen grid-cols-[1.05fr_0.95fr]">

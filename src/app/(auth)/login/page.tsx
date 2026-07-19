@@ -1,10 +1,18 @@
-import { Suspense } from "react";
 import { LoginForm } from "@/app/(auth)/login/login-form";
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<main className="flex min-h-screen items-center justify-center text-white/60">Loading...</main>}>
-      <LoginForm />
-    </Suspense>
-  );
+type LoginPageProps = {
+  searchParams?: Promise<{
+    redirectTo?: string | string[];
+    reason?: string | string[];
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+
+  return <LoginForm redirectTo={firstParam(params?.redirectTo) ?? "/dashboard"} reason={firstParam(params?.reason)} />;
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
