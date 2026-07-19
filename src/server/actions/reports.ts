@@ -1,11 +1,10 @@
-"use server";
-
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
+import { createNotification } from "@/server/workflows/notifications";
 
 export const dailyReportSchema = z.object({
   reportDate: z.coerce.date(),
@@ -103,8 +102,75 @@ export async function submitDailyReport(input: unknown) {
   return saved;
 }
 
+export async function submitDailyReportAction(formData: FormData) {
+  "use server";
+
+  await submitDailyReport({
+    reportDate: formData.get("reportDate"),
+    shiftStart: formData.get("shiftStart"),
+    shiftEnd: formData.get("shiftEnd"),
+    breakMinutes: formData.get("breakMinutes"),
+    completed: formData.get("completed"),
+    inProgress: formData.get("inProgress"),
+    clientUpdates: formData.get("clientUpdates"),
+    leadActivity: formData.get("leadActivity"),
+    meetings: formData.get("meetings"),
+    blockers: formData.get("blockers"),
+    waitingOnStephen: formData.get("waitingOnStephen"),
+    recommendations: formData.get("recommendations"),
+    tomorrowPriorities: formData.get("tomorrowPriorities"),
+    submit: formData.get("submit") === "true"
+  });
+}
+
+export async function reviewDailyReportAction(formData: FormData) {
+  "use server";
+
+  const user = await requireUser();
+  if (!hasPermission(user, "reports:review")) throw new Error("Forbidden: reports:review");
+
+  const parsed = z.object({
+    reportId: z.string().min(1),
+    status: z.enum(["Reviewed", "ChangesRequested"]),
+    reviewerNotes: z.string().optional()
+  }).parse({
+    reportId: formData.get("reportId"),
+    status: formData.get("status"),
+    reviewerNotes: formData.get("reviewerNotes")
+  });
+
+  const report = await getPrisma().dailyReport.findUnique({ where: { id: parsed.reportId } });
+  if (!report) throw new Error("Report not found");
+
+  const updated = await getPrisma().dailyReport.update({
+    where: { id: parsed.reportId },
+    data: {
+      status: parsed.status,
+      reviewerId: user.id,
+      reviewerNotes: parsed.reviewerNotes,
+      reviewedAt: new Date()
+    }
+  });
+
+  await Promise.all([
+    createNotification({ userId: report.userId, title: "Daily report reviewed", body: parsed.status, href: `/daily-reports/${report.id}` }),
+    writeAuditLog({
+      userId: user.id,
+      action: "daily_report.reviewed",
+      entity: "DailyReport",
+      entityId: report.id,
+      before: { status: report.status },
+      after: { status: updated.status }
+    })
+  ]);
+
+}
+
 function calculateHours(start: Date | undefined, end: Date | undefined, breakMinutes: number) {
   if (!start || !end) return 0;
+  if (end <= start) {
+    throw new Error("Shift end must be after shift start.");
+  }
   const minutes = Math.max(0, (end.getTime() - start.getTime()) / 60000 - breakMinutes);
   return Math.round((minutes / 60) * 100) / 100;
 }

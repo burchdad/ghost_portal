@@ -171,6 +171,7 @@ model User {
   auditLogs                AuditLog[]
   files                    FileAsset[]
   feedback                 FeedbackSubmission[]
+  trialSettings            TrialSettings?
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
   archivedAt               DateTime?
@@ -320,6 +321,7 @@ model Lead {
   approvals        Approval[]
   files            FileAsset[]
   draftCommunications DraftCommunication[]
+  tasks            Task[]
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   archivedAt       DateTime?
@@ -377,6 +379,7 @@ model Task {
   dueDate          DateTime?
   projectId        String?
   clientId         String?
+  leadId           String?
   ownerId          String?
   approverId       String?
   createdById      String?
@@ -386,6 +389,7 @@ model Task {
   archivedAt       DateTime?
   project          Project?    @relation(fields: [projectId], references: [id])
   client           Client?     @relation(fields: [clientId], references: [id])
+  lead             Lead?       @relation(fields: [leadId], references: [id])
   owner            User?       @relation("TaskOwner", fields: [ownerId], references: [id])
   approver         User?       @relation("TaskApprover", fields: [approverId], references: [id])
   createdBy        User?       @relation("TaskCreator", fields: [createdById], references: [id])
@@ -399,6 +403,7 @@ model Task {
   @@index([ownerId, status])
   @@index([dueDate])
   @@index([clientId])
+  @@index([leadId])
 }
 
 model OnboardingModule {
@@ -410,6 +415,7 @@ model OnboardingModule {
   required    Boolean                 @default(true)
   sortOrder   Int
   published   Boolean                 @default(true)
+  visibleToRoles RoleName[]              @default([])
   completions OnboardingCompletion[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
@@ -461,11 +467,17 @@ model FileAsset {
   leadId      String?
   projectId   String?
   taskId      String?
+  approvalId  String?
+  reportId    String?
+  feedbackId  String?
   uploader    User           @relation(fields: [uploaderId], references: [id])
   client      Client?        @relation(fields: [clientId], references: [id])
   lead        Lead?          @relation(fields: [leadId], references: [id])
   project     Project?       @relation(fields: [projectId], references: [id])
   task        Task?          @relation(fields: [taskId], references: [id])
+  approval    Approval?      @relation(fields: [approvalId], references: [id])
+  report      DailyReport?   @relation(fields: [reportId], references: [id])
+  feedback    FeedbackSubmission? @relation(fields: [feedbackId], references: [id])
   access      FileAccess[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -506,6 +518,7 @@ model DailyReport {
   reviewerNotes      String?
   user               User              @relation(fields: [userId], references: [id])
   reviewer           User?             @relation("ReportReviewer", fields: [reviewerId], references: [id])
+  files              FileAsset[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -539,6 +552,7 @@ model Approval {
   lead                  Lead?          @relation(fields: [leadId], references: [id])
   draftCommunication    DraftCommunication? @relation(fields: [draftCommunicationId], references: [id])
   comments              Comment[]
+  files                 FileAsset[]
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 
@@ -613,8 +627,25 @@ model FeedbackSubmission {
   status          FeedbackStatus @default(New)
   founderResponse String?
   submittedBy     User          @relation(fields: [submittedById], references: [id])
+  files           FileAsset[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+}
+
+model TrialSettings {
+  id                      String     @id @default(cuid())
+  userId                  String     @unique
+  trialStartDate          DateTime
+  trialEndDate            DateTime
+  weeklyHourTarget        Decimal
+  maximumTrialHours       Decimal
+  hourlyRateCents         Int
+  primaryTimezone         String     @default("Asia/Manila")
+  requiredOverlapTimezone String     @default("America/Chicago")
+  status                  String     @default("Active")
+  user                    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
 }
 
 model Notification {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { canAccessClient, canAccessLead, requireUser } from "@/server/permissions/authorize";
@@ -25,6 +26,14 @@ export async function createApprovalRequest(input: unknown) {
 
   if (parsed.clientId && !(await canAccessClient(user, parsed.clientId))) throw new Error("Forbidden: client");
   if (parsed.leadId && !(await canAccessLead(user, parsed.leadId))) throw new Error("Forbidden: lead");
+  if (parsed.taskId) {
+    const task = await getPrisma().task.findUnique({ where: { id: parsed.taskId } });
+    if (!task || (user.role !== "Founder" && task.ownerId !== user.id)) throw new Error("Forbidden: task");
+  }
+  if (parsed.draftCommunicationId) {
+    const draft = await getPrisma().draftCommunication.findUnique({ where: { id: parsed.draftCommunicationId } });
+    if (!draft || (user.role !== "Founder" && draft.authorId !== user.id)) throw new Error("Forbidden: draft communication");
+  }
 
   const approval = await getPrisma().approval.create({
     data: {
@@ -42,6 +51,25 @@ export async function createApprovalRequest(input: unknown) {
   });
 
   return approval;
+}
+
+export async function createApprovalRequestAction(formData: FormData) {
+  "use server";
+
+  await createApprovalRequest({
+    summary: formData.get("summary"),
+    context: formData.get("context"),
+    businessImpact: formData.get("businessImpact"),
+    recommendation: formData.get("recommendation"),
+    deadline: formData.get("deadline") || undefined,
+    priority: formData.get("priority") || "Medium",
+    taskId: formData.get("taskId") || undefined,
+    clientId: formData.get("clientId") || undefined,
+    leadId: formData.get("leadId") || undefined,
+    draftCommunicationId: formData.get("draftCommunicationId") || undefined
+  });
+
+  revalidatePath("/approvals");
 }
 
 export async function decideApproval(approvalId: string, decision: "Approved" | "Rejected" | "ChangesRequested", decisionNotes: string) {
@@ -73,4 +101,22 @@ export async function decideApproval(approvalId: string, decision: "Approved" | 
   });
 
   return updated;
+}
+
+export async function decideApprovalAction(formData: FormData) {
+  "use server";
+
+  const parsed = z.object({
+    approvalId: z.string().min(1),
+    decision: z.enum(["Approved", "Rejected", "ChangesRequested"]),
+    decisionNotes: z.string().min(1)
+  }).parse({
+    approvalId: formData.get("approvalId"),
+    decision: formData.get("decision"),
+    decisionNotes: formData.get("decisionNotes")
+  });
+
+  await decideApproval(parsed.approvalId, parsed.decision, parsed.decisionNotes);
+  revalidatePath(`/approvals/${parsed.approvalId}`);
+  revalidatePath("/approvals");
 }

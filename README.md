@@ -7,7 +7,7 @@ Ghost Portal is the internal operations portal for Ghost AI Solutions. Phase 1 f
 - Next.js 15 App Router with protected route groups.
 - React 19 and TypeScript.
 - Prisma ORM with PostgreSQL.
-- Server-side authentication/session helpers with HTTP-only cookies.
+- Prisma-backed password/session authentication with HTTP-only cookies.
 - Role permissions plus record-level client, lead, and file access.
 - Dark premium Ghost Portal layout with sidebar, header, and Nova drawer.
 
@@ -66,6 +66,6 @@ Use Vercel for the Next.js application and Railway PostgreSQL for `DATABASE_URL`
 
 ## Phase 1 Scope
 
-Implemented foundation includes protected route architecture, authentication/session helpers, record access helpers, expanded Prisma models, seed data, dashboard data queries, onboarding/task/client/lead/report/approval/knowledge/announcement/admin route shells, audit utility, and security tests.
+Implemented Phase 1 workflow coverage includes protected route architecture, authentication/session helpers, record access helpers, expanded Prisma models, seed data, dashboard data queries, task creation and updates, client/lead access management, draft communication approval, onboarding completion, daily reports, approval decisions, notifications, feedback, audit utility, and security tests.
 
-Known remaining work: full Better Auth adapter wiring, email verification delivery, password reset email delivery, complete create/edit forms for every workflow, production upload adapter, notification mutation UI, and full Playwright browser verification.
+Known remaining work: optional Better Auth migration if it cleanly maps to the current schema, email verification delivery, password reset email delivery, production upload adapter, richer reusable table controls, and full Playwright browser verification.
