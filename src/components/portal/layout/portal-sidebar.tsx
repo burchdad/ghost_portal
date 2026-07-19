@@ -12,7 +12,7 @@ export function PortalSidebar({ user }: { user: AuthzUser }) {
   const visibleItems = portalNavItems.filter((item) => !item.permission || hasPermission(user, item.permission));
 
   return (
-    <aside className="hidden border-r border-white/10 bg-black/20 px-4 py-5 backdrop-blur-2xl lg:block">
+    <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-white/10 bg-black/20 px-4 py-5 backdrop-blur-xl lg:block">
       <div className="mb-8 flex items-center gap-3 px-2">
         <div className="flex size-10 items-center justify-center rounded-lg bg-white text-zinc-950">
           <Home className="size-5" />

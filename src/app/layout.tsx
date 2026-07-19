@@ -14,7 +14,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Ghost Portal",
-  description: "The internal operating system for Ghost AI Solutions."
+  description: "The internal operating system for Ghost AI Solutions.",
+  icons: {
+    icon: "/favicon.svg"
+  }
 };
 
 export default function RootLayout({

@@ -16,9 +16,9 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   ]);
 
   return (
-    <div className="grid min-h-screen grid-cols-1 text-foreground lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)_340px]">
+    <div className="grid min-h-screen grid-cols-1 text-foreground lg:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)_340px]">
       <PortalSidebar user={user} />
-      <main className="min-w-0">
+      <main className="min-w-0 overflow-x-hidden">
         <PortalHeader user={user} unreadNotifications={unreadNotifications} />
         {children}
       </main>

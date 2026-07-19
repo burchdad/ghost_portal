@@ -44,7 +44,7 @@ export default async function TasksPage({
 
   return (
     <PageSection eyebrow="Execution" title="My Tasks" description="Assigned operational work with server-side role and owner scoping.">
-      <form className="mb-5 grid gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-4 md:grid-cols-[1fr_160px_160px_auto]">
+      <form className="mb-5 grid gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-4 md:grid-cols-[minmax(0,1fr)_160px_160px_auto]">
         <input name="q" defaultValue={filters.q} placeholder="Search tasks" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm outline-none focus:border-accent" />
         <select name="status" defaultValue={filters.status ?? ""} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
           <option value="">All statuses</option>
@@ -64,7 +64,7 @@ export default async function TasksPage({
       {canCreate ? (
         <Card className="mb-5">
           <h3 className="mb-4 text-lg font-semibold">Create and Assign Task</h3>
-          <form action={createTaskAction} className="grid gap-3 lg:grid-cols-2">
+          <form action={createTaskAction} className="grid gap-3 xl:grid-cols-2">
             <input name="title" placeholder="Task title" required className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
             <select name="ownerId" required className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
               <option value="">Assign owner</option>
@@ -72,7 +72,7 @@ export default async function TasksPage({
                 <option key={row.id} value={row.id}>{row.preferredName ?? row.name} ({row.role.name})</option>
               ))}
             </select>
-            <textarea name="description" placeholder="Description" className="min-h-24 rounded-lg border border-white/10 bg-black/24 p-3 text-sm lg:col-span-2" />
+            <textarea name="description" placeholder="Description" className="min-h-24 rounded-lg border border-white/10 bg-black/24 p-3 text-sm xl:col-span-2" />
             <select name="clientId" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
               <option value="">Related client</option>
               {clients.map((client) => <option key={client.id} value={client.id}>{client.company}</option>)}
@@ -96,8 +96,8 @@ export default async function TasksPage({
             <label className="flex h-10 items-center gap-2 text-sm text-white/64">
               <input name="approvalRequired" type="checkbox" /> Approval required
             </label>
-            <textarea name="internalNotes" placeholder="Internal notes" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm lg:col-span-2" />
-            <Button className="lg:col-span-2" variant="accent">Create task</Button>
+            <textarea name="internalNotes" placeholder="Internal notes" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm xl:col-span-2" />
+            <Button className="xl:col-span-2" variant="accent">Create task</Button>
           </form>
         </Card>
       ) : null}

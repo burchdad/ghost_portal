@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 
 export function NovaDrawer({ user, summary }: { user: SessionUser; summary: string }) {
   return (
-    <aside className="hidden border-l border-white/10 bg-black/24 px-5 py-5 backdrop-blur-2xl xl:block">
+    <aside className="sticky top-0 hidden h-screen overflow-y-auto border-l border-white/10 bg-black/24 px-5 py-5 backdrop-blur-xl 2xl:block">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.22em] text-accent">Nova</p>

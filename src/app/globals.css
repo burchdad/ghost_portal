@@ -25,6 +25,7 @@ html {
 }
 
 body {
+  overflow-x: hidden;
   min-height: 100%;
   margin: 0;
   background:
@@ -49,5 +50,5 @@ select {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.092), rgba(255, 255, 255, 0.035));
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(24px);
+  backdrop-filter: blur(14px);
 }
