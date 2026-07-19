@@ -1,0 +1,384 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  Founder
+  Executive
+  Operations
+  Sales
+  Marketing
+  Developer
+  Support
+  Finance
+  Contractor
+  Client
+}
+
+enum TaskStatus {
+  New
+  Assigned
+  InProgress
+  WaitingOnStephen
+  WaitingOnClient
+  Completed
+  Blocked
+}
+
+enum Priority {
+  Low
+  Medium
+  High
+  Urgent
+}
+
+enum LeadStage {
+  New
+  Qualified
+  Proposal
+  Negotiation
+  Won
+  Lost
+}
+
+enum RiskStatus {
+  Low
+  Medium
+  High
+}
+
+enum ApprovalStatus {
+  Open
+  Approved
+  Rejected
+  Commented
+}
+
+model User {
+  id                String              @id @default(cuid())
+  name              String
+  email             String              @unique
+  emailVerified     Boolean             @default(false)
+  image             String?
+  roleId            String
+  role              Role                @relation(fields: [roleId], references: [id])
+  sessions          Session[]
+  accounts          Account[]
+  assignedTasks     Task[]              @relation("TaskOwner")
+  approvedTasks     Task[]              @relation("TaskApprover")
+  assignedLeads     Lead[]
+  ownedArticles     KnowledgeArticle[]
+  authoredAnnouncements Announcement[]
+  announcementReads AnnouncementRead[]
+  approvalsOwned    Approval[]          @relation("ApprovalRequester")
+  approvalsApproved Approval[]          @relation("ApprovalDecider")
+  reports           DailyReport[]
+  comments          Comment[]
+  activity          Activity[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  files             FileAsset[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id           String   @id @default(cuid())
+  userId       String
+  accountId    String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  idToken      String?
+  expiresAt    DateTime?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        RoleName         @unique
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Client {
+  id              String       @id @default(cuid())
+  company         String
+  services        String[]
+  riskStatus      RiskStatus   @default(Low)
+  nextFollowUp    DateTime?
+  internalNotes   String?
+  contacts        Contact[]
+  projects        Project[]
+  tasks           Task[]
+  leads           Lead[]
+  files           FileAsset[]
+  communications  Communication[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  clientId  String
+  name      String
+  email     String?
+  phone     String?
+  title     String?
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lead {
+  id               String     @id @default(cuid())
+  clientId         String?
+  company          String
+  serviceInterest  String
+  estimatedValue   Decimal?
+  stage            LeadStage  @default(New)
+  lastContact      DateTime?
+  nextAction       String?
+  followUpDate     DateTime?
+  draftMessage     String?
+  assignedUserId   String?
+  approvalRequired Boolean    @default(false)
+  client           Client?    @relation(fields: [clientId], references: [id])
+  assignedUser     User?      @relation(fields: [assignedUserId], references: [id])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model Project {
+  id           String       @id @default(cuid())
+  clientId     String?
+  name         String
+  description  String?
+  status       String
+  timeline     String?
+  client       Client?      @relation(fields: [clientId], references: [id])
+  tasks        Task[]
+  milestones   Milestone[]
+  files        FileAsset[]
+  comments     Comment[]
+  activity     Activity[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Milestone {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  dueDate   DateTime?
+  completed Boolean  @default(false)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus  @default(New)
+  priority    Priority    @default(Medium)
+  dueDate     DateTime?
+  projectId   String?
+  clientId    String?
+  ownerId     String?
+  approverId  String?
+  notes       String?
+  project     Project?    @relation(fields: [projectId], references: [id])
+  client      Client?     @relation(fields: [clientId], references: [id])
+  owner       User?       @relation("TaskOwner", fields: [ownerId], references: [id])
+  approver    User?       @relation("TaskApprover", fields: [approverId], references: [id])
+  comments    Comment[]
+  files       FileAsset[]
+  activity    Activity[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model KnowledgeArticle {
+  id        String    @id @default(cuid())
+  title     String
+  category  String
+  body      String
+  ownerId   String?
+  version   Int       @default(1)
+  owner     User?     @relation(fields: [ownerId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model FileAsset {
+  id          String    @id @default(cuid())
+  name        String
+  url         String
+  folder      String
+  mimeType    String
+  version     Int       @default(1)
+  uploaderId  String
+  clientId    String?
+  projectId   String?
+  taskId      String?
+  uploader    User      @relation(fields: [uploaderId], references: [id])
+  client      Client?   @relation(fields: [clientId], references: [id])
+  project     Project?  @relation(fields: [projectId], references: [id])
+  task        Task?     @relation(fields: [taskId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model DailyReport {
+  id                 String   @id @default(cuid())
+  userId             String
+  hoursWorked        Decimal
+  completed          String
+  inProgress         String
+  clientUpdates      String?
+  leadActivity       String?
+  meetings           String?
+  blockers           String?
+  waitingOnStephen   String?
+  recommendations    String?
+  tomorrowPriorities String
+  user               User     @relation(fields: [userId], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Approval {
+  id              String         @id @default(cuid())
+  summary         String
+  businessImpact  String
+  recommendation  String
+  deadline        DateTime?
+  status          ApprovalStatus @default(Open)
+  requesterId     String
+  deciderId       String?
+  requester       User           @relation("ApprovalRequester", fields: [requesterId], references: [id])
+  decider         User?          @relation("ApprovalDecider", fields: [deciderId], references: [id])
+  comments        Comment[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  category    String
+  pinned      Boolean  @default(false)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  readReceipts AnnouncementRead[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AnnouncementRead {
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String?
+  readAt    DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Comment {
+  id         String    @id @default(cuid())
+  body       String
+  authorId   String
+  taskId     String?
+  projectId  String?
+  approvalId String?
+  author     User      @relation(fields: [authorId], references: [id])
+  task       Task?     @relation(fields: [taskId], references: [id])
+  project    Project?  @relation(fields: [projectId], references: [id])
+  approval   Approval? @relation(fields: [approvalId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  target    String
+  taskId    String?
+  projectId String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  task      Task?    @relation(fields: [taskId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  ipAddress String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Communication {
+  id        String   @id @default(cuid())
+  clientId  String
+  channel   String
+  summary   String
+  occurredAt DateTime
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}

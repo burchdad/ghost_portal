@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --color-background: #08090d;
+  --color-foreground: #f6f7fb;
+  --color-muted: #9499aa;
+  --color-border: rgba(255, 255, 255, 0.11);
+  --color-card: rgba(255, 255, 255, 0.065);
+  --color-primary: #f8fafc;
+  --color-primary-foreground: #101116;
+  --color-accent: #72e4c1;
+  --color-warning: #f6c177;
+  --color-danger: #ff8a8a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: #08090d;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 5%, rgba(114, 228, 193, 0.14), transparent 24rem),
+    radial-gradient(circle at 90% 10%, rgba(142, 160, 255, 0.12), transparent 26rem),
+    #08090d;
+  color: #f6f7fb;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(114, 228, 193, 0.35);
+}
+
+.glass {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.092), rgba(255, 255, 255, 0.035));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(24px);
+}
