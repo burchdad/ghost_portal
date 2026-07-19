@@ -117,10 +117,31 @@ async function main() {
         estimatedMinutes: index < 4 ? 8 : 12,
         required: true,
         sortOrder: index + 1,
-        published: true
+        published: true,
+        visibleToRoles: ["Founder", "Operations"]
       }
     });
   }
+
+  await prisma.trialSettings.upsert({
+    where: { userId: alex.id },
+    update: {
+      primaryTimezone: "Asia/Manila",
+      requiredOverlapTimezone: "America/Chicago",
+      status: "Active"
+    },
+    create: {
+      userId: alex.id,
+      trialStartDate: new Date(Date.UTC(2026, 6, 20)),
+      trialEndDate: new Date(Date.UTC(2026, 6, 26)),
+      weeklyHourTarget: 20,
+      maximumTrialHours: 25,
+      hourlyRateCents: 0,
+      primaryTimezone: "Asia/Manila",
+      requiredOverlapTimezone: "America/Chicago",
+      status: "Active"
+    }
+  });
 
   const client = await prisma.client.upsert({
     where: { id: "seed_client_demo_northstar" },

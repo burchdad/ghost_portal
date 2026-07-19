@@ -8,6 +8,7 @@ import {
   Folder,
   LayoutDashboard,
   Megaphone,
+  Send,
   MessageSquareText,
   Settings,
   Sparkles,
@@ -28,8 +29,10 @@ export const portalNavItems = [
   { label: "Knowledge Center", href: "/knowledge", icon: BookOpen, permission: "knowledge:read" },
   { label: "Files", href: "/files", icon: Folder, permission: "files:upload" },
   { label: "Daily Reports", href: "/daily-reports", icon: FileText, permission: "reports:submit" },
+  { label: "Draft Communications", href: "/communications", icon: Send, permission: "approvals:request" },
   { label: "Waiting on Stephen", href: "/approvals", icon: Bell, permission: "approvals:request" },
   { label: "Announcements", href: "/announcements", icon: Megaphone, permission: "announcements:read" },
+  { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Mission Feedback", href: "/feedback", icon: Sparkles, permission: "feedback:create" },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Admin", href: "/admin/users", icon: MessageSquareText, permission: "admin:access" }

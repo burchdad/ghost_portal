@@ -4,7 +4,7 @@ import { logoutAction } from "@/server/auth/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-export function PortalHeader({ user }: { user: SessionUser }) {
+export function PortalHeader({ user, unreadNotifications }: { user: SessionUser; unreadNotifications: number }) {
   return (
     <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-white/10 bg-[#08090d]/80 px-5 backdrop-blur-2xl lg:px-8">
       <div className="flex h-11 w-full max-w-xl items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 text-white/50">
@@ -16,8 +16,11 @@ export function PortalHeader({ user }: { user: SessionUser }) {
       </div>
 
       <div className="ml-4 flex items-center gap-3">
-        <Button variant="outline" size="icon" aria-label="Notifications">
+        <Button asChild variant="outline" size="icon" aria-label="Notifications">
+          <a href="/notifications" className="relative">
           <Bell className="size-4" />
+            {unreadNotifications > 0 ? <span className="absolute right-1 top-1 size-2 rounded-full bg-danger" /> : null}
+          </a>
         </Button>
         <Button variant="outline" size="sm" className="hidden sm:inline-flex">
           <Plus className="size-4" />

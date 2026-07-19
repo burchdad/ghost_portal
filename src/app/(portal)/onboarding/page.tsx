@@ -1,8 +1,10 @@
 import { PageSection } from "@/components/portal/page-section";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { completeOnboardingModuleAction } from "@/server/workflows/onboarding";
 
 export default async function OnboardingPage() {
   const user = await requireUser();
@@ -25,6 +27,12 @@ export default async function OnboardingPage() {
               <Badge>{module.completions.length ? "Completed" : module.required ? "Required" : "Optional"}</Badge>
             </div>
             <p className="mt-4 text-sm text-white/44">{module.estimatedMinutes} min</p>
+            {!module.completions.length ? (
+              <form action={completeOnboardingModuleAction} className="mt-4">
+                <input type="hidden" name="moduleId" value={module.id} />
+                <Button variant="accent">Mark complete</Button>
+              </form>
+            ) : null}
           </Card>
         ))}
       </div>

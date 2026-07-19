@@ -6,24 +6,32 @@ import { createUserSession, destroyCurrentSession } from "@/server/auth/session"
 import { verifyPassword } from "@/server/auth/password";
 import { getPrisma } from "@/server/db/prisma";
 import { writeAuditLog } from "@/server/audit/audit";
+import { checkRateLimit } from "@/server/auth/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1)
+  password: z.string().min(1),
+  redirectTo: z.string().optional()
 });
 
 export async function loginAction(_: { error?: string } | undefined, formData: FormData) {
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
-    password: formData.get("password")
+    password: formData.get("password"),
+    redirectTo: formData.get("redirectTo")
   });
 
   if (!parsed.success) {
     return { error: "Enter a valid email and password." };
   }
 
+  const email = parsed.data.email.toLowerCase();
+  if (!checkRateLimit(`login:${email}`)) {
+    return { error: "Too many login attempts. Try again later." };
+  }
+
   const user = await getPrisma().user.findUnique({
-    where: { email: parsed.data.email.toLowerCase() },
+    where: { email },
     include: { role: true }
   });
 
@@ -33,7 +41,7 @@ export async function loginAction(_: { error?: string } | undefined, formData: F
     await writeAuditLog({
       action: "auth.failed_login",
       entity: "User",
-      after: { email: parsed.data.email.toLowerCase() }
+      after: { email }
     });
     return { error: "Email or password is incorrect." };
   }
@@ -43,10 +51,15 @@ export async function loginAction(_: { error?: string } | undefined, formData: F
   }
 
   await createUserSession(user.id);
-  redirect("/dashboard");
+  redirect(safeRedirect(parsed.data.redirectTo));
 }
 
 export async function logoutAction() {
   await destroyCurrentSession();
   redirect("/login");
+}
+
+function safeRedirect(value: string | undefined) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  return value;
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { canAccessClient, canAccessLead, requireUser } from "@/server/permissions/authorize";
@@ -44,6 +45,25 @@ export async function createApprovalRequest(input: unknown) {
   return approval;
 }
 
+export async function createApprovalRequestAction(formData: FormData) {
+  "use server";
+
+  await createApprovalRequest({
+    summary: formData.get("summary"),
+    context: formData.get("context"),
+    businessImpact: formData.get("businessImpact"),
+    recommendation: formData.get("recommendation"),
+    deadline: formData.get("deadline") || undefined,
+    priority: formData.get("priority") || "Medium",
+    taskId: formData.get("taskId") || undefined,
+    clientId: formData.get("clientId") || undefined,
+    leadId: formData.get("leadId") || undefined,
+    draftCommunicationId: formData.get("draftCommunicationId") || undefined
+  });
+
+  revalidatePath("/approvals");
+}
+
 export async function decideApproval(approvalId: string, decision: "Approved" | "Rejected" | "ChangesRequested", decisionNotes: string) {
   const user = await requireUser();
   if (!hasPermission(user, "approvals:decide")) throw new Error("Forbidden: approvals:decide");
@@ -73,4 +93,22 @@ export async function decideApproval(approvalId: string, decision: "Approved" | 
   });
 
   return updated;
+}
+
+export async function decideApprovalAction(formData: FormData) {
+  "use server";
+
+  const parsed = z.object({
+    approvalId: z.string().min(1),
+    decision: z.enum(["Approved", "Rejected", "ChangesRequested"]),
+    decisionNotes: z.string().min(1)
+  }).parse({
+    approvalId: formData.get("approvalId"),
+    decision: formData.get("decision"),
+    decisionNotes: formData.get("decisionNotes")
+  });
+
+  await decideApproval(parsed.approvalId, parsed.decision, parsed.decisionNotes);
+  revalidatePath(`/approvals/${parsed.approvalId}`);
+  revalidatePath("/approvals");
 }
