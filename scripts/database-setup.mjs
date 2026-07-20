@@ -10,6 +10,14 @@ if (!process.env.DATABASE_URL) {
   process.exit(0);
 }
 
+// The first Academy migration deployment failed before any SQL was applied because
+// the migration file had a UTF-8 BOM. Mark only that failed attempt as rolled back
+// when present, then let `migrate deploy` apply the corrected migration normally.
+spawnSync("pnpm", ["exec", "prisma", "migrate", "resolve", "--rolled-back", "20260720015000_ghost_academy_phase1"], {
+  stdio: "inherit",
+  shell: process.platform === "win32"
+});
+
 for (const args of [
   ["prisma", "migrate", "deploy"],
   ["prisma", "db", "seed"]

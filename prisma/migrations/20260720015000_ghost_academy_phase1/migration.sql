@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "AcademyContentType" AS ENUM ('Learning', 'SOP', 'Policy', 'Knowledge', 'ToolGuide');
 
 -- CreateEnum
