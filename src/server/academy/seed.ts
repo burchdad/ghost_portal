@@ -1,4 +1,5 @@
-import type { PrismaClient, RoleName, SOPCategory } from "@prisma/client";
+import type { PrismaClient, RoleName } from "@prisma/client";
+import { knowledgeArticleDefinitions, renderKnowledgeBody, renderSOPBody, sopDefinitions, type KnowledgeArticleDefinition, type SOPDefinition } from "@/server/academy/content";
 
 type PrismaLike = PrismaClient;
 
@@ -120,29 +121,6 @@ const policies = [
   "Records Retention and Documentation Policy"
 ];
 
-const sopGroups: Array<{ category: SOPCategory; titles: string[] }> = [
-  { category: "Operations", titles: ["Start-of-shift review", "End-of-shift closeout", "Submit an end-of-day report", "Update a task", "Add a task comment", "Request Stephen's approval", "Report a Portal issue", "Escalate urgent work", "Organize assigned priorities", "Document a new recurring process"] },
-  { category: "ClientOperations", titles: ["Review an assigned client", "Update client operational notes", "Request missing information from a client", "Prepare a client status update", "Escalate a client complaint", "Record client communication", "Track a pending client decision", "Handle a revision request", "Close a client follow-up", "Identify an at-risk client"] },
-  { category: "LeadOperations", titles: ["Review an assigned lead", "Update lead next action", "Draft a lead follow-up", "Submit a draft for approval", "Record a follow-up outcome", "Schedule a discovery call", "Move a lead to nurture", "Flag a pricing question", "Flag a lead requiring Stephen", "Clean an incomplete lead record"] },
-  { category: "MeetingsExecutiveSupport", titles: ["Schedule a meeting", "Confirm a meeting", "Prepare a meeting brief", "Record meeting notes", "Track action items", "Reschedule a meeting", "Cancel a meeting professionally", "Prepare Stephen's daily priority summary", "Maintain Waiting on Stephen", "Follow up on an unanswered decision"] },
-  { category: "ContentMarketingSupport", titles: ["Prepare a social-post draft", "Schedule approved content", "Organize content assets", "Repurpose long-form content", "Review content for brand consistency", "Submit content for approval", "Record published content", "Identify missing content assets", "Maintain a content calendar", "Escalate public-comment risk"] }
-];
-
-const knowledgeArticles = [
-  "What is Nova?",
-  "What is Vega?",
-  "What is Echo?",
-  "What is GEO?",
-  "What is Ghost Portal?",
-  "What is Mission Control?",
-  "Ghost AI Solutions service catalog",
-  "Brand voice guide",
-  "Company terminology",
-  "Technology overview",
-  "Pricing philosophy",
-  "Client lifecycle"
-];
-
 export async function seedAcademy(prisma: PrismaLike) {
   const founder = await prisma.user.findFirst({ where: { role: { name: "Founder" }, status: "Active" } });
   const alex = await prisma.user.findFirst({ where: { email: (process.env.OPERATIONS_SEED_EMAIL ?? "amariexc@gmail.com").toLowerCase() } });
@@ -255,41 +233,12 @@ export async function seedAcademy(prisma: PrismaLike) {
     }
   }
 
-  let sopCount = 1;
-  for (const group of sopGroups) {
-    for (const title of group.titles) {
-      await syncSOP(prisma, sopCount, group.category, title);
-      sopCount += 1;
-    }
+  for (const definition of sopDefinitions) {
+    await syncSOP(prisma, definition);
   }
 
-  for (const title of knowledgeArticles) {
-    const article = await prisma.knowledgeArticle.upsert({
-      where: { id: `academy_${slug(title)}` },
-      update: {
-        title,
-        category: "Ghost Academy",
-        body: buildKnowledgeBody(title),
-        status: "Published",
-        visibleToRoles: audience,
-        requiredReading: false
-      },
-      create: {
-        id: `academy_${slug(title)}`,
-        title,
-        category: "Ghost Academy",
-        body: buildKnowledgeBody(title),
-        status: "Published",
-        ownerId: founder?.id,
-        visibleToRoles: audience,
-        requiredReading: false
-      }
-    });
-    await prisma.knowledgeArticleVersion.upsert({
-      where: { articleId_version: { articleId: article.id, version: article.version } },
-      update: { title: article.title, body: article.body },
-      create: { articleId: article.id, version: article.version, title: article.title, body: article.body, changedById: founder?.id }
-    });
+  for (const definition of knowledgeArticleDefinitions) {
+    await syncKnowledgeArticle(prisma, definition, founder?.id);
   }
 }
 
@@ -400,24 +349,23 @@ async function syncKnowledgeCheck(prisma: PrismaLike, moduleId: string, title: s
   }
 }
 
-async function syncSOP(prisma: PrismaLike, number: number, category: SOPCategory, title: string) {
-  const key = `sop_${number}_${slug(title)}`;
-  const existing = await prisma.sOPArticle.findUnique({ where: { sourceKey: key } });
+async function syncSOP(prisma: PrismaLike, definition: SOPDefinition) {
+  const existing = await prisma.sOPArticle.findUnique({ where: { sourceKey: definition.sourceKey } });
   const data = {
-    slug: slug(title),
-    title,
-    category,
-    purpose: `Provide a repeatable standard for ${title.toLowerCase()} inside Ghost AI Solutions operations.`,
-    owner: "Founder",
-    audienceRoles: audience,
-    trigger: `Use this SOP whenever the work requires ${title.toLowerCase()}.`,
-    requiredInputs: ["Assigned task or record", "Current facts", "Relevant deadline", "Known approval requirements"],
-    body: buildSOPBody(title),
-    approvalPoints: ["Pricing, scope, sensitive client communication, deadlines, and public statements require Stephen approval."],
-    escalationConditions: ["Client risk", "Security concern", "Legal or payment issue", "Unclear authority", "Blocked deadline"],
-    completionCriteria: ["Record updated", "Task/comment/report reflects outcome", "Any approval request created", "Next action is clear"],
-    relatedTemplates: ["Daily report form", "Waiting on Stephen request", "Task comment"],
-    version: 1,
+    slug: slug(definition.title),
+    title: definition.title,
+    category: definition.category,
+    purpose: definition.purpose,
+    owner: definition.owner,
+    audienceRoles: definition.audience,
+    trigger: definition.useWhen.join(" | "),
+    requiredInputs: definition.requiredInputs,
+    body: renderSOPBody(definition),
+    approvalPoints: definition.approvalPoints,
+    escalationConditions: definition.escalationConditions,
+    completionCriteria: definition.completionCriteria,
+    relatedTemplates: definition.relatedTemplates,
+    version: 2,
     published: true,
     seedManaged: true,
     founderReviewRequired: true,
@@ -428,19 +376,70 @@ async function syncSOP(prisma: PrismaLike, number: number, category: SOPCategory
     ? existing.seedManaged
       ? await prisma.sOPArticle.update({ where: { id: existing.id }, data })
       : existing
-    : await prisma.sOPArticle.create({ data: { ...data, sourceKey: key } });
+    : await prisma.sOPArticle.create({ data: { ...data, sourceKey: definition.sourceKey } });
   if (sop.seedManaged) {
     await prisma.sOPStep.deleteMany({ where: { sopId: sop.id } });
     await prisma.sOPStep.createMany({
-      data: [
-        { sopId: sop.id, stepNumber: 1, title: "Confirm scope", instruction: "Open the related Portal record and confirm the task, client, lead, due date, and approval requirements before acting." },
-        { sopId: sop.id, stepNumber: 2, title: "Gather facts", instruction: "Review notes, comments, previous communication, and attached context. Do not rely on memory when the Portal has a source of truth." },
-        { sopId: sop.id, stepNumber: 3, title: "Do the work", instruction: `Perform ${title.toLowerCase()} using approved systems and keep sensitive information inside approved channels.` },
-        { sopId: sop.id, stepNumber: 4, title: "Document outcome", instruction: "Add a meaningful task comment or record update that states what changed, what remains open, and any blocker." },
-        { sopId: sop.id, stepNumber: 5, title: "Escalate or close", instruction: "Create a Waiting on Stephen request when authority is unclear; otherwise mark the next action and close the loop." }
-      ]
+      data: definition.steps.map((step, index) => ({
+        sopId: sop.id,
+        stepNumber: index + 1,
+        title: step.title,
+        instruction: `${step.instruction} Expected outcome: ${step.expectedOutcome}${step.warning ? ` Warning: ${step.warning}` : ""}`
+      }))
     });
   }
+}
+
+async function syncKnowledgeArticle(prisma: PrismaLike, definition: KnowledgeArticleDefinition, founderId: string | undefined) {
+  const existing = await prisma.knowledgeArticle.findUnique({ where: { id: definition.id } });
+  const body = renderKnowledgeBody(definition);
+  const relatedLinks = {
+    seedManaged: true,
+    slug: definition.slug,
+    routes: definition.relatedPortalRoutes,
+    relatedSOPKeys: definition.relatedSOPKeys,
+    founderReviewQuestions: definition.founderReviewQuestions
+  };
+
+  if (existing && existing.category !== "Ghost Academy") {
+    return existing;
+  }
+
+  const article = existing
+    ? await prisma.knowledgeArticle.update({
+        where: { id: existing.id },
+        data: {
+          title: definition.title,
+          category: definition.category,
+          body,
+          status: "Published",
+          version: Math.max(existing.version, 2),
+          visibleToRoles: definition.audience,
+          requiredReading: false,
+          relatedLinks
+        }
+      })
+    : await prisma.knowledgeArticle.create({
+        data: {
+          id: definition.id,
+          title: definition.title,
+          category: definition.category,
+          body,
+          status: "Published",
+          ownerId: founderId,
+          version: 2,
+          visibleToRoles: definition.audience,
+          requiredReading: false,
+          relatedLinks
+        }
+      });
+
+  await prisma.knowledgeArticleVersion.upsert({
+    where: { articleId_version: { articleId: article.id, version: article.version } },
+    update: { title: article.title, body: article.body },
+    create: { articleId: article.id, version: article.version, title: article.title, body: article.body, changedById: founderId }
+  });
+  return article;
 }
 
 function buildModuleBody(title: string, summary: string) {
@@ -487,32 +486,6 @@ Escalate immediately when information is sensitive, a client is upset, a deadlin
 
 ## Founder Review
 Founder review required before this policy is treated as final legal or contractual language.`;
-}
-
-function buildSOPBody(title: string) {
-  return `# ${title}
-
-## Purpose
-This SOP standardizes ${title.toLowerCase()} so Operations work is repeatable, documented, and reviewable.
-
-## Operating Standard
-Start from the Portal record, verify the facts, perform only the authorized work, document the outcome, and escalate anything requiring Stephen's decision. The goal is not just to complete an action, but to leave the next person with enough context to understand what happened.
-
-## Approval Points
-Stephen approval is required for pricing, discounts, refunds, scope changes, sensitive client disputes, public statements, security concerns, legal concerns, and commitments that could affect delivery.
-
-## Completion Criteria
-The work is complete only when the relevant record is updated, the next action is clear, blockers are documented, and any required Waiting on Stephen request has been created.`;
-}
-
-function buildKnowledgeBody(title: string) {
-  return `# ${title}
-
-${title} is part of the Ghost Academy Knowledge Base. This article provides quick reference context for Operations and Founder users.
-
-Ghost AI Solutions uses this concept as part of an AI-first operating model. Alex may use this reference to understand terminology, organize records, prepare drafts, and ask better questions. This reference does not authorize pricing, client promises, technical guarantees, public claims, or security decisions without Stephen's approval.
-
-Founder review may refine this article as Ghost AI Solutions formalizes products, service language, and internal operating standards.`;
 }
 
 function objectivesFor(title: string) {

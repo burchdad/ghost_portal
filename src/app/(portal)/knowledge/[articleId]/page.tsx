@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { MarkdownRenderer } from "@/components/portal/markdown-renderer";
 import { PageSection } from "@/components/portal/page-section";
 import { Card } from "@/components/ui/card";
 import { getPrisma } from "@/server/db/prisma";
@@ -14,7 +15,7 @@ export default async function KnowledgeDetailPage({ params }: { params: Promise<
   return (
     <PageSection eyebrow={article.category} title={article.title} description={`Version ${article.version}`}>
       <Card>
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-white/64">{article.body}</pre>
+        <MarkdownRenderer content={article.body} />
       </Card>
     </PageSection>
   );
