@@ -20,13 +20,14 @@ import type { Permission } from "@/server/permissions/roles";
 
 export const portalNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Onboarding", href: "/onboarding", icon: CheckSquare, permission: "onboarding:complete" },
+  { label: "Ghost Academy", href: "/academy", icon: CheckSquare, permission: "academy:read" },
   { label: "My Tasks", href: "/tasks", icon: Clock3, permission: "tasks:read:assigned" },
   { label: "Clients", href: "/clients", icon: Users, permission: "clients:read:assigned" },
   { label: "Leads", href: "/leads", icon: Target, permission: "leads:read:assigned" },
   { label: "Projects", href: "/projects", icon: Workflow, permission: "projects:read:assigned" },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
-  { label: "Knowledge Center", href: "/knowledge", icon: BookOpen, permission: "knowledge:read" },
+  { label: "SOP Library", href: "/sops", icon: BookOpen, permission: "academy:read" },
+  { label: "Knowledge Base", href: "/knowledge", icon: BookOpen, permission: "knowledge:read" },
   { label: "Files", href: "/files", icon: Folder, permission: "files:upload" },
   { label: "Daily Reports", href: "/daily-reports", icon: FileText, permission: "reports:submit" },
   { label: "Draft Communications", href: "/communications", icon: Send, permission: "approvals:request" },

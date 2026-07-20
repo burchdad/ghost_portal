@@ -19,6 +19,7 @@ cp .env.example .env
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
+pnpm academy:seed
 pnpm dev
 ```
 
@@ -63,6 +64,8 @@ pnpm build
 ## Deployment
 
 Use Vercel for the Next.js application and Railway PostgreSQL for `DATABASE_URL`. Run Prisma migrations during deployment, then seed only with explicit environment credentials. Point `portal.ghostai.solutions` at the Vercel production deployment.
+
+Ghost Academy content is seeded by `pnpm db:seed` or `pnpm academy:seed`. Academy records use stable `sourceKey` values and update only seed-managed content. Founder-edited Academy modules are marked manually managed and are not blindly overwritten by later seed runs.
 
 ## Phase 1 Scope
 

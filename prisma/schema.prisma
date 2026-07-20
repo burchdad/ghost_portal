@@ -133,6 +133,67 @@ enum FileVisibility {
   RoleVisible
 }
 
+enum AcademyContentType {
+  Learning
+  SOP
+  Policy
+  Knowledge
+  ToolGuide
+}
+
+enum AcademyAssignmentStatus {
+  Assigned
+  InProgress
+  Completed
+  Paused
+  Archived
+}
+
+enum AcademyQuestionStatus {
+  Open
+  Answered
+  Resolved
+  ConvertedToFAQ
+}
+
+enum AcademyUrgency {
+  Normal
+  Urgent
+}
+
+enum KnowledgeQuestionType {
+  MultipleChoice
+  TrueFalse
+  ScenarioChoice
+  ShortResponse
+}
+
+enum KnowledgeAttemptStatus {
+  Passed
+  Failed
+  FounderReview
+}
+
+enum ModuleResourceType {
+  InternalLink
+  ExternalLink
+  DownloadableFile
+  VideoUrl
+  Screenshot
+  Template
+  Checklist
+  RelatedSOP
+  RelatedKnowledgeArticle
+}
+
+enum SOPCategory {
+  Operations
+  ClientOperations
+  LeadOperations
+  MeetingsExecutiveSupport
+  ContentMarketingSupport
+}
+
 model User {
   id                       String                   @id @default(cuid())
   name                     String
@@ -172,6 +233,15 @@ model User {
   files                    FileAsset[]
   feedback                 FeedbackSubmission[]
   trialSettings            TrialSettings?
+  learningPathAssignments  LearningPathAssignment[] @relation("AcademyLearner")
+  assignedLearningPaths    LearningPathAssignment[] @relation("AcademyAssigner")
+  academyCompletions       ModuleCompletion[]
+  policyAcknowledgements   PolicyAcknowledgement[]
+  academyNotes             EmployeeModuleNote[]
+  academyQuestions         EmployeeQuestion[]       @relation("AcademyQuestionLearner")
+  answeredAcademyQuestions EmployeeQuestion[]       @relation("AcademyQuestionAnswerer")
+  academyProgress          AcademyProgress[]
+  academyActivity          AcademyActivity[]
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
   archivedAt               DateTime?
@@ -209,13 +279,13 @@ model Account {
 }
 
 model VerificationToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   email     String
-  tokenHash String   @unique
+  tokenHash String    @unique
   type      String
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([email, type])
 }
@@ -246,26 +316,26 @@ model RolePermission {
 }
 
 model Client {
-  id                    String          @id @default(cuid())
-  company               String
-  status                ClientStatus    @default(Prospect)
-  services              String[]
-  riskStatus            RiskStatus      @default(Low)
-  nextFollowUp          DateTime?
-  operationalNotes      String?
-  founderOnlyNotes      String?
-  contacts              Contact[]
-  projects              Project[]
-  tasks                 Task[]
-  leads                 Lead[]
-  files                 FileAsset[]
-  access                ClientAccess[]
-  draftCommunications   DraftCommunication[]
-  approvals             Approval[]
-  communications        Communication[]
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  archivedAt            DateTime?
+  id                  String               @id @default(cuid())
+  company             String
+  status              ClientStatus         @default(Prospect)
+  services            String[]
+  riskStatus          RiskStatus           @default(Low)
+  nextFollowUp        DateTime?
+  operationalNotes    String?
+  founderOnlyNotes    String?
+  contacts            Contact[]
+  projects            Project[]
+  tasks               Task[]
+  leads               Lead[]
+  files               FileAsset[]
+  access              ClientAccess[]
+  draftCommunications DraftCommunication[]
+  approvals           Approval[]
+  communications      Communication[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  archivedAt          DateTime?
 
   @@index([riskStatus])
   @@index([status])
@@ -297,34 +367,34 @@ model Contact {
 }
 
 model Lead {
-  id               String               @id @default(cuid())
-  clientId         String?
-  company          String
-  contactName      String?
-  contactEmail     String?
-  contactPhone     String?
-  serviceInterest  String
-  estimatedValue   Decimal?
-  approvedValue    Decimal?
-  stage            LeadStage            @default(New)
-  lastContact      DateTime?
-  followUpDate     DateTime?
-  nextAction       String?
-  draftMessage     String?
-  notes            String?
-  approvalRequired Boolean              @default(false)
-  approvalStatus   ApprovalStatus?
-  assignedUserId   String?
-  client           Client?              @relation(fields: [clientId], references: [id])
-  assignedUser     User?                @relation(fields: [assignedUserId], references: [id])
-  access           LeadAccess[]
-  approvals        Approval[]
-  files            FileAsset[]
+  id                  String               @id @default(cuid())
+  clientId            String?
+  company             String
+  contactName         String?
+  contactEmail        String?
+  contactPhone        String?
+  serviceInterest     String
+  estimatedValue      Decimal?
+  approvedValue       Decimal?
+  stage               LeadStage            @default(New)
+  lastContact         DateTime?
+  followUpDate        DateTime?
+  nextAction          String?
+  draftMessage        String?
+  notes               String?
+  approvalRequired    Boolean              @default(false)
+  approvalStatus      ApprovalStatus?
+  assignedUserId      String?
+  client              Client?              @relation(fields: [clientId], references: [id])
+  assignedUser        User?                @relation(fields: [assignedUserId], references: [id])
+  access              LeadAccess[]
+  approvals           Approval[]
+  files               FileAsset[]
   draftCommunications DraftCommunication[]
-  tasks            Task[]
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  archivedAt       DateTime?
+  tasks               Task[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  archivedAt          DateTime?
 
   @@index([stage, followUpDate])
   @@index([assignedUserId])
@@ -344,21 +414,21 @@ model LeadAccess {
 }
 
 model Project {
-  id           String       @id @default(cuid())
-  clientId     String?
-  name         String
-  description  String?
-  status       String
-  timeline     String?
-  client       Client?      @relation(fields: [clientId], references: [id])
-  tasks        Task[]
-  milestones   Milestone[]
-  files        FileAsset[]
-  comments     Comment[]
-  activity     Activity[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  archivedAt   DateTime?
+  id          String      @id @default(cuid())
+  clientId    String?
+  name        String
+  description String?
+  status      String
+  timeline    String?
+  client      Client?     @relation(fields: [clientId], references: [id])
+  tasks       Task[]
+  milestones  Milestone[]
+  files       FileAsset[]
+  comments    Comment[]
+  activity    Activity[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  archivedAt  DateTime?
 }
 
 model Milestone {
@@ -407,18 +477,18 @@ model Task {
 }
 
 model OnboardingModule {
-  id          String                  @id @default(cuid())
-  title       String
-  description String
-  content     String
+  id               String                 @id @default(cuid())
+  title            String
+  description      String
+  content          String
   estimatedMinutes Int
-  required    Boolean                 @default(true)
-  sortOrder   Int
-  published   Boolean                 @default(true)
-  visibleToRoles RoleName[]              @default([])
-  completions OnboardingCompletion[]
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
+  required         Boolean                @default(true)
+  sortOrder        Int
+  published        Boolean                @default(true)
+  visibleToRoles   RoleName[]             @default([])
+  completions      OnboardingCompletion[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   @@index([published, sortOrder])
 }
@@ -426,62 +496,412 @@ model OnboardingModule {
 model OnboardingCompletion {
   userId      String
   moduleId    String
-  completedAt DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completedAt DateTime         @default(now())
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   module      OnboardingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@id([userId, moduleId])
   @@index([userId, completedAt])
 }
 
+model LearningPath {
+  id                    String                   @id @default(cuid())
+  sourceKey             String                   @unique
+  slug                  String                   @unique
+  title                 String
+  description           String
+  visibleToRoles        RoleName[]               @default([])
+  active                Boolean                  @default(true)
+  version               Int                      @default(1)
+  estimatedTotalMinutes Int                      @default(0)
+  seedManaged           Boolean                  @default(true)
+  founderReviewRequired Boolean                  @default(false)
+  createdById           String?
+  updatedById           String?
+  courses               Course[]
+  assignments           LearningPathAssignment[]
+  progress              AcademyProgress[]
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  archivedAt            DateTime?
+
+  @@index([active])
+}
+
+model LearningPathAssignment {
+  id           String                  @id @default(cuid())
+  pathId       String
+  userId       String
+  assignedById String?
+  assignedAt   DateTime                @default(now())
+  dueDate      DateTime?
+  status       AcademyAssignmentStatus @default(Assigned)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  required     Boolean                 @default(true)
+  customNotes  String?
+  path         LearningPath            @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  user         User                    @relation("AcademyLearner", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy   User?                   @relation("AcademyAssigner", fields: [assignedById], references: [id])
+
+  @@unique([pathId, userId])
+  @@index([userId, status])
+}
+
+model Course {
+  id          String         @id @default(cuid())
+  sourceKey   String         @unique
+  slug        String         @unique
+  pathId      String
+  title       String
+  description String
+  sortOrder   Int
+  required    Boolean        @default(true)
+  published   Boolean        @default(true)
+  seedManaged Boolean        @default(true)
+  path        LearningPath   @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  modules     CourseModule[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([pathId, sortOrder])
+}
+
+model CourseModule {
+  id                      String                  @id @default(cuid())
+  sourceKey               String                  @unique
+  slug                    String                  @unique
+  courseId                String
+  title                   String
+  summary                 String
+  learningObjectives      String[]
+  body                    String
+  sortOrder               Int
+  estimatedMinutes        Int
+  required                Boolean                 @default(true)
+  contentType             AcademyContentType      @default(Learning)
+  published               Boolean                 @default(true)
+  audienceRoles           RoleName[]              @default([])
+  version                 Int                     @default(1)
+  acknowledgementRequired Boolean                 @default(false)
+  acknowledgementText     String?
+  knowledgeCheckRequired  Boolean                 @default(false)
+  minimumPassingScore     Int                     @default(80)
+  ownerId                 String?
+  lastReviewed            DateTime?
+  nextReviewDate          DateTime?
+  founderReviewRequired   Boolean                 @default(false)
+  seedManaged             Boolean                 @default(true)
+  archivedAt              DateTime?
+  course                  Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sections                ModuleSection[]
+  resources               ModuleResource[]
+  knowledgeCheck          KnowledgeCheck?
+  completions             ModuleCompletion[]
+  acknowledgements        PolicyAcknowledgement[]
+  notes                   EmployeeModuleNote[]
+  questions               EmployeeQuestion[]
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  @@index([courseId, sortOrder])
+  @@index([published, contentType])
+}
+
+model ModuleSection {
+  id        String       @id @default(cuid())
+  moduleId  String
+  heading   String
+  body      String
+  sortOrder Int
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, sortOrder])
+}
+
+model ModuleResource {
+  id          String             @id @default(cuid())
+  moduleId    String
+  type        ModuleResourceType
+  label       String
+  url         String?
+  description String?
+  sortOrder   Int                @default(0)
+  module      CourseModule       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([moduleId, sortOrder])
+}
+
+model KnowledgeCheck {
+  id               String                   @id @default(cuid())
+  moduleId         String                   @unique
+  passingScore     Int                      @default(80)
+  unlimitedRetries Boolean                  @default(true)
+  module           CourseModule             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions        KnowledgeCheckQuestion[]
+  attempts         KnowledgeCheckAttempt[]
+}
+
+model KnowledgeCheckQuestion {
+  id                    String                 @id @default(cuid())
+  checkId               String
+  type                  KnowledgeQuestionType
+  prompt                String
+  explanation           String
+  sortOrder             Int
+  requiredFounderReview Boolean                @default(false)
+  check                 KnowledgeCheck         @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  options               KnowledgeCheckOption[]
+
+  @@unique([checkId, sortOrder])
+}
+
+model KnowledgeCheckOption {
+  id         String                 @id @default(cuid())
+  questionId String
+  label      String
+  correct    Boolean                @default(false)
+  sortOrder  Int
+  question   KnowledgeCheckQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, sortOrder])
+}
+
+model KnowledgeCheckAttempt {
+  id            String                 @id @default(cuid())
+  checkId       String
+  userId        String
+  answers       Json
+  score         Int
+  status        KnowledgeAttemptStatus
+  submittedAt   DateTime               @default(now())
+  reviewerId    String?
+  reviewerNotes String?
+  check         KnowledgeCheck         @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  @@index([checkId, userId, submittedAt])
+}
+
+model ModuleCompletion {
+  id                      String       @id @default(cuid())
+  userId                  String
+  moduleId                String
+  moduleVersion           Int
+  acknowledgementAccepted Boolean      @default(false)
+  knowledgeCheckAttemptId String?
+  founderReviewedAt       DateTime?
+  completedAt             DateTime     @default(now())
+  user                    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module                  CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId, moduleVersion])
+  @@index([userId, completedAt])
+}
+
+model PolicyAcknowledgement {
+  id             String       @id @default(cuid())
+  userId         String
+  moduleId       String
+  moduleVersion  Int
+  statement      String
+  acknowledgedAt DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module         CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId, moduleVersion])
+}
+
+model EmployeeModuleNote {
+  id        String       @id @default(cuid())
+  userId    String
+  moduleId  String
+  body      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
+}
+
+model EmployeeQuestion {
+  id               String                @id @default(cuid())
+  userId           String
+  moduleId         String?
+  urgency          AcademyUrgency        @default(Normal)
+  status           AcademyQuestionStatus @default(Open)
+  question         String
+  answer           String?
+  answeredById     String?
+  answeredAt       DateTime?
+  resolvedAt       DateTime?
+  convertedToFaqAt DateTime?
+  user             User                  @relation("AcademyQuestionLearner", fields: [userId], references: [id], onDelete: Cascade)
+  answeredBy       User?                 @relation("AcademyQuestionAnswerer", fields: [answeredById], references: [id])
+  module           CourseModule?         @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([userId, status])
+  @@index([moduleId, status])
+}
+
+model SOPArticle {
+  id                    String      @id @default(cuid())
+  sourceKey             String      @unique
+  slug                  String      @unique
+  title                 String
+  category              SOPCategory
+  purpose               String
+  owner                 String
+  audienceRoles         RoleName[]  @default([])
+  trigger               String
+  requiredInputs        String[]
+  body                  String
+  approvalPoints        String[]
+  escalationConditions  String[]
+  completionCriteria    String[]
+  relatedTemplates      String[]
+  version               Int         @default(1)
+  published             Boolean     @default(true)
+  seedManaged           Boolean     @default(true)
+  founderReviewRequired Boolean     @default(false)
+  lastReviewed          DateTime?
+  nextReviewDate        DateTime?
+  steps                 SOPStep[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  archivedAt            DateTime?
+
+  @@index([published, category])
+}
+
+model SOPStep {
+  id          String     @id @default(cuid())
+  sopId       String
+  stepNumber  Int
+  title       String
+  instruction String
+  sop         SOPArticle @relation(fields: [sopId], references: [id], onDelete: Cascade)
+
+  @@unique([sopId, stepNumber])
+}
+
+model KnowledgeArticleVersion {
+  id          String           @id @default(cuid())
+  articleId   String
+  version     Int
+  title       String
+  body        String
+  changedById String?
+  article     KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+
+  @@unique([articleId, version])
+}
+
+model ContentAudience {
+  id          String   @id @default(cuid())
+  contentType String
+  contentId   String
+  role        RoleName
+  required    Boolean  @default(false)
+
+  @@unique([contentType, contentId, role])
+  @@index([role])
+}
+
+model RequiredReadingAssignment {
+  id           String    @id @default(cuid())
+  userId       String
+  contentType  String
+  contentId    String
+  assignedById String?
+  dueDate      DateTime?
+  completedAt  DateTime?
+  required     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, contentType, contentId])
+  @@index([userId, completedAt])
+}
+
+model AcademyProgress {
+  id                        String       @id @default(cuid())
+  userId                    String
+  pathId                    String
+  percent                   Int          @default(0)
+  estimatedMinutesRemaining Int          @default(0)
+  updatedAt                 DateTime     @updatedAt
+  user                      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  path                      LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pathId])
+}
+
+model AcademyActivity {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  targetType String
+  targetId   String?
+  target     String
+  metadata   Json?
+  user       User?    @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 model KnowledgeArticle {
-  id              String          @id @default(cuid())
+  id              String                    @id @default(cuid())
   title           String
   category        String
   body            String
-  status          KnowledgeStatus @default(Draft)
+  status          KnowledgeStatus           @default(Draft)
   ownerId         String?
-  version         Int             @default(1)
+  version         Int                       @default(1)
   visibleToRoles  RoleName[]
-  requiredReading Boolean         @default(false)
+  requiredReading Boolean                   @default(false)
   relatedLinks    Json?
   archivedAt      DateTime?
-  owner           User?           @relation(fields: [ownerId], references: [id])
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  owner           User?                     @relation(fields: [ownerId], references: [id])
+  versions        KnowledgeArticleVersion[]
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
 
   @@index([status, category])
 }
 
 model FileAsset {
-  id          String         @id @default(cuid())
-  name        String
-  mimeType    String
-  size        Int
-  storageKey  String
-  visibility  FileVisibility @default(AssignedUsers)
-  folder      String
-  version     Int            @default(1)
-  uploaderId  String
-  clientId    String?
-  leadId      String?
-  projectId   String?
-  taskId      String?
-  approvalId  String?
-  reportId    String?
-  feedbackId  String?
-  uploader    User           @relation(fields: [uploaderId], references: [id])
-  client      Client?        @relation(fields: [clientId], references: [id])
-  lead        Lead?          @relation(fields: [leadId], references: [id])
-  project     Project?       @relation(fields: [projectId], references: [id])
-  task        Task?          @relation(fields: [taskId], references: [id])
-  approval    Approval?      @relation(fields: [approvalId], references: [id])
-  report      DailyReport?   @relation(fields: [reportId], references: [id])
-  feedback    FeedbackSubmission? @relation(fields: [feedbackId], references: [id])
-  access      FileAccess[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  archivedAt  DateTime?
+  id         String              @id @default(cuid())
+  name       String
+  mimeType   String
+  size       Int
+  storageKey String
+  visibility FileVisibility      @default(AssignedUsers)
+  folder     String
+  version    Int                 @default(1)
+  uploaderId String
+  clientId   String?
+  leadId     String?
+  projectId  String?
+  taskId     String?
+  approvalId String?
+  reportId   String?
+  feedbackId String?
+  uploader   User                @relation(fields: [uploaderId], references: [id])
+  client     Client?             @relation(fields: [clientId], references: [id])
+  lead       Lead?               @relation(fields: [leadId], references: [id])
+  project    Project?            @relation(fields: [projectId], references: [id])
+  task       Task?               @relation(fields: [taskId], references: [id])
+  approval   Approval?           @relation(fields: [approvalId], references: [id])
+  report     DailyReport?        @relation(fields: [reportId], references: [id])
+  feedback   FeedbackSubmission? @relation(fields: [feedbackId], references: [id])
+  access     FileAccess[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  archivedAt DateTime?
 }
 
 model FileAccess {
@@ -528,33 +948,33 @@ model DailyReport {
 }
 
 model Approval {
-  id                    String         @id @default(cuid())
-  summary               String
-  context               String
-  businessImpact        String
-  recommendation        String
-  deadline              DateTime?
-  priority              Priority       @default(Medium)
-  status                ApprovalStatus @default(Open)
-  decision              String?
-  decisionNotes         String?
-  decisionAt            DateTime?
-  requesterId           String
-  deciderId             String?
-  taskId                String?
-  clientId              String?
-  leadId                String?
-  draftCommunicationId  String?
-  requester             User           @relation("ApprovalRequester", fields: [requesterId], references: [id])
-  decider               User?          @relation("ApprovalDecider", fields: [deciderId], references: [id])
-  task                  Task?          @relation(fields: [taskId], references: [id])
-  client                Client?        @relation(fields: [clientId], references: [id])
-  lead                  Lead?          @relation(fields: [leadId], references: [id])
-  draftCommunication    DraftCommunication? @relation(fields: [draftCommunicationId], references: [id])
-  comments              Comment[]
-  files                 FileAsset[]
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  id                   String              @id @default(cuid())
+  summary              String
+  context              String
+  businessImpact       String
+  recommendation       String
+  deadline             DateTime?
+  priority             Priority            @default(Medium)
+  status               ApprovalStatus      @default(Open)
+  decision             String?
+  decisionNotes        String?
+  decisionAt           DateTime?
+  requesterId          String
+  deciderId            String?
+  taskId               String?
+  clientId             String?
+  leadId               String?
+  draftCommunicationId String?
+  requester            User                @relation("ApprovalRequester", fields: [requesterId], references: [id])
+  decider              User?               @relation("ApprovalDecider", fields: [deciderId], references: [id])
+  task                 Task?               @relation(fields: [taskId], references: [id])
+  client               Client?             @relation(fields: [clientId], references: [id])
+  lead                 Lead?               @relation(fields: [leadId], references: [id])
+  draftCommunication   DraftCommunication? @relation(fields: [draftCommunicationId], references: [id])
+  comments             Comment[]
+  files                FileAsset[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@index([status, deadline])
   @@index([requesterId])
@@ -588,21 +1008,21 @@ model DraftCommunication {
 }
 
 model Announcement {
-  id           String             @id @default(cuid())
-  title        String
-  body         String
-  category     String
-  priority     Priority           @default(Medium)
-  pinned       Boolean            @default(false)
-  publishAt    DateTime           @default(now())
-  expiresAt    DateTime?
+  id            String             @id @default(cuid())
+  title         String
+  body          String
+  category      String
+  priority      Priority           @default(Medium)
+  pinned        Boolean            @default(false)
+  publishAt     DateTime           @default(now())
+  expiresAt     DateTime?
   audienceRoles RoleName[]
-  archivedAt   DateTime?
-  authorId     String
-  author       User               @relation(fields: [authorId], references: [id])
-  readReceipts AnnouncementRead[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  archivedAt    DateTime?
+  authorId      String
+  author        User               @relation(fields: [authorId], references: [id])
+  readReceipts  AnnouncementRead[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 
 model AnnouncementRead {
@@ -621,31 +1041,31 @@ model FeedbackSubmission {
   title           String
   description     String
   pageOrFeature   String?
-  severity        Priority      @default(Medium)
+  severity        Priority       @default(Medium)
   attachmentId    String?
   submittedById   String
   status          FeedbackStatus @default(New)
   founderResponse String?
-  submittedBy     User          @relation(fields: [submittedById], references: [id])
+  submittedBy     User           @relation(fields: [submittedById], references: [id])
   files           FileAsset[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model TrialSettings {
-  id                      String     @id @default(cuid())
-  userId                  String     @unique
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
   trialStartDate          DateTime
   trialEndDate            DateTime
   weeklyHourTarget        Decimal
   maximumTrialHours       Decimal
   hourlyRateCents         Int
-  primaryTimezone         String     @default("Asia/Manila")
-  requiredOverlapTimezone String     @default("America/Chicago")
-  status                  String     @default("Active")
-  user                    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt               DateTime   @default(now())
-  updatedAt               DateTime   @updatedAt
+  primaryTimezone         String   @default("Asia/Manila")
+  requiredOverlapTimezone String   @default("America/Chicago")
+  status                  String   @default("Active")
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model Notification {

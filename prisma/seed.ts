@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/server/auth/password";
+import { seedAcademy } from "../src/server/academy/seed";
 import { permissions, rolePermissions, roles } from "../src/server/permissions/roles";
 
 const prisma = new PrismaClient();
@@ -279,6 +280,8 @@ async function main() {
       requiredReading: true
     }
   });
+
+  await seedAcademy(prisma);
 }
 
 main()

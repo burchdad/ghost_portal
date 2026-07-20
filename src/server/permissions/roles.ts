@@ -16,6 +16,8 @@ export type Role = (typeof roles)[number];
 export const permissions = [
   "analytics:read",
   "admin:access",
+  "academy:manage",
+  "academy:read",
   "announcements:create",
   "announcements:read",
   "approvals:decide",
@@ -58,17 +60,21 @@ export const rolePermissions: Record<Role, Permission[]> = {
   Founder: [...permissions],
   Executive: [
     "analytics:read",
+    "academy:manage",
+    "academy:read",
     "announcements:create",
     "announcements:read",
     "approvals:decide",
     "audit:read",
     "clients:read:all",
     "feedback:read",
+    "academy:read",
     "knowledge:read",
     "projects:update:status",
     "reports:submit"
   ],
   Operations: [
+    "academy:read",
     "approvals:request",
     "clients:read:assigned",
     "clients:update:notes",
@@ -86,6 +92,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "tasks:update:assigned"
   ],
   Sales: [
+    "academy:read",
     "approvals:request",
     "clients:read:assigned",
     "clients:update:notes",
@@ -96,11 +103,11 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "tasks:read:assigned",
     "tasks:update:assigned"
   ],
-  Marketing: ["approvals:request", "knowledge:read", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
-  Developer: ["approvals:request", "files:upload", "knowledge:read", "projects:read:assigned", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
-  Support: ["clients:read:assigned", "clients:update:notes", "knowledge:read", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
-  Finance: ["finance:read", "knowledge:read", "reports:submit", "tasks:read:assigned"],
-  Contractor: ["knowledge:read", "projects:read:assigned", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
+  Marketing: ["academy:read", "approvals:request", "knowledge:read", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
+  Developer: ["academy:read", "approvals:request", "files:upload", "knowledge:read", "projects:read:assigned", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
+  Support: ["academy:read", "clients:read:assigned", "clients:update:notes", "knowledge:read", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
+  Finance: ["academy:read", "finance:read", "knowledge:read", "reports:submit", "tasks:read:assigned"],
+  Contractor: ["academy:read", "knowledge:read", "projects:read:assigned", "reports:submit", "tasks:read:assigned", "tasks:update:assigned"],
   Client: []
 };
 
