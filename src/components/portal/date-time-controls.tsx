@@ -62,16 +62,34 @@ export function TimezoneDisplay({ timezone }: { timezone: string }) {
 }
 
 export function BreakDurationSelect({ name = "breakMinutes", label, helper, className }: { name?: string; label: string; helper?: string; className?: string }) {
+  const [selected, setSelected] = useState("0");
+  const [customMinutes, setCustomMinutes] = useState("0");
+  const submittedValue = selected === "custom" ? customMinutes : selected;
+
   return (
     <FieldShell label={label} helper={helper} className={className}>
-      <select name={name} defaultValue="0" className={fieldClass}>
-        <option value="0">0 minutes</option>
-        <option value="15">15 minutes</option>
-        <option value="30">30 minutes</option>
-        <option value="45">45 minutes</option>
-        <option value="60">60 minutes</option>
-        <option value="custom" disabled>Custom</option>
-      </select>
+      <input type="hidden" name={name} value={submittedValue} />
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
+        <select value={selected} onChange={(event) => setSelected(event.target.value)} className={fieldClass}>
+          <option value="0">0 minutes</option>
+          <option value="15">15 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="45">45 minutes</option>
+          <option value="60">60 minutes</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input
+          type="number"
+          min="0"
+          max="480"
+          step="5"
+          value={customMinutes}
+          onChange={(event) => setCustomMinutes(event.target.value)}
+          disabled={selected !== "custom"}
+          aria-label="Custom break minutes"
+          className={cn(fieldClass, selected !== "custom" && "opacity-45")}
+        />
+      </div>
     </FieldShell>
   );
 }
