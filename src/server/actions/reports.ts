@@ -180,8 +180,8 @@ function calculateHours(start: Date | undefined, end: Date | undefined, breakMin
   if (end <= start) {
     throw new Error("Shift end must be after shift start.");
   }
-  const minutes = Math.max(0, (end.getTime() - start.getTime()) / 60000 - breakMinutes);
-  return Math.round((minutes / 60) * 100) / 100;
+  const workedMinutes = Math.max(0, (end.getTime() - start.getTime()) / 60000 - breakMinutes);
+  return workedMinutes / 60;
 }
 
 function startOfUtcDay(date: Date) {

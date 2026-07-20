@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { PageSection } from "@/components/portal/page-section";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/portal/date-time-controls";
 import { canAccessLead, minimizeLeadForUser, requireUser } from "@/server/permissions/authorize";
 import { getPrisma } from "@/server/db/prisma";
 import { grantLeadAccessAction, revokeLeadAccessAction } from "@/server/workflows/record-access";
@@ -31,7 +32,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
             <input type="hidden" name="leadId" value={visibleLead.id} />
             <textarea name="nextAction" defaultValue={visibleLead.nextAction ?? ""} placeholder="Proposed next action" className="min-h-20 w-full rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
             <textarea name="notes" defaultValue={visibleLead.notes ?? ""} placeholder="Operational notes" className="min-h-20 w-full rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
-            <input name="followUpDate" type="datetime-local" className="h-10 w-full rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
+            <DateTimePicker name="followUpDate" label="Follow-up date" helper="Optional next follow-up time." timezone={user.timezone} defaultValue={visibleLead.followUpDate} optional />
             <Button>Save operational update</Button>
           </form>
         </Card>

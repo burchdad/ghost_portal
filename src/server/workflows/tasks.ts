@@ -8,6 +8,7 @@ import { getPrisma } from "@/server/db/prisma";
 import { canAccessClient, canAccessLead, canModifyTask, requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
 import { createNotification } from "@/server/workflows/notifications";
+import { formatTaskStatus } from "@/lib/task-status";
 
 const taskFormSchema = z.object({
   title: z.string().min(3),
@@ -116,7 +117,7 @@ export async function updateTaskStatusAction(formData: FormData) {
         create: {
           actorId: user.id,
           action: "updated task status",
-          target: parsed.status
+          target: formatTaskStatus(parsed.status)
         }
       }
     }
@@ -127,8 +128,8 @@ export async function updateTaskStatusAction(formData: FormData) {
     action: "task.status_updated",
     entity: "Task",
     entityId: task.id,
-    before: { status: task.status },
-    after: { status: updated.status }
+    before: { status: formatTaskStatus(task.status) },
+    after: { status: formatTaskStatus(updated.status) }
   });
 
   revalidatePath(`/tasks/${task.id}`);

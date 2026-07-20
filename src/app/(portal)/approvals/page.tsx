@@ -4,6 +4,7 @@ import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/portal/date-time-controls";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 import { createApprovalRequestAction } from "@/server/workflows/approvals";
@@ -22,7 +23,7 @@ export default async function ApprovalsPage() {
         <h3 className="mb-4 text-lg font-semibold">Create Waiting on Stephen Request</h3>
         <form action={createApprovalRequestAction} className="grid gap-3 lg:grid-cols-2">
           <input name="summary" required placeholder="Summary" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
-          <input name="deadline" type="datetime-local" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
+          <DateTimePicker name="deadline" label="Approval deadline" helper="Optional target time for a decision." timezone={user.timezone} optional />
           <textarea name="context" required placeholder="Context" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm lg:col-span-2" />
           <textarea name="businessImpact" required placeholder="Business impact" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
           <textarea name="recommendation" required placeholder="Recommendation" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />

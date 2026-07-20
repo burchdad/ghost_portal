@@ -4,6 +4,7 @@ import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DateTimePicker } from "@/components/portal/date-time-controls";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
@@ -36,7 +37,7 @@ export default async function LeadsPage() {
             <select name="stage" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
               {["New", "Contacted", "Qualified", "Discovery", "Proposal", "Negotiation", "Won", "Lost", "Nurture"].map((stage) => <option key={stage} value={stage}>{stage}</option>)}
             </select>
-            <input name="followUpDate" type="datetime-local" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
+            <DateTimePicker name="followUpDate" label="Follow-up date" helper="Optional next follow-up time." timezone={user.timezone} optional />
             <textarea name="nextAction" placeholder="Next action" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm lg:col-span-2" />
             <label className="flex items-center gap-2 text-sm text-white/64">
               <input name="approvalRequired" type="checkbox" /> Approval required

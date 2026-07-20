@@ -2,6 +2,7 @@ import type { SessionUser } from "@/server/permissions/authorize";
 import { getTrialSubjectForViewer } from "@/server/data/trial-subject";
 import { getPrisma } from "@/server/db/prisma";
 import { hasPermission } from "@/server/permissions/roles";
+import { formatTaskActivityTarget, formatTaskStatus } from "@/lib/task-status";
 
 export type DashboardSnapshot = {
   greeting: string;
@@ -129,7 +130,7 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
       title: task.title,
       owner: task.owner?.preferredName ?? task.owner?.name ?? "Unassigned",
       due: formatDate(task.dueDate, user.timezone),
-      state: task.status,
+      state: formatTaskStatus(task.status),
       priority: task.priority
     })),
     clientUpdates: clientRows.map((client) => ({
@@ -159,7 +160,7 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
     activity: activityRows.map((event) => ({
       actor: event.actor?.preferredName ?? event.actor?.name ?? "System",
       action: event.action,
-      target: event.target,
+      target: formatTaskActivityTarget(event.target),
       time: formatDate(event.createdAt, user.timezone)
     })),
     hoursThisWeek,

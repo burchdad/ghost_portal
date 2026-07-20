@@ -4,10 +4,12 @@ import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/portal/date-time-controls";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
 import { createTaskAction } from "@/server/workflows/tasks";
+import { formatTaskStatus, taskStatusOptions } from "@/lib/task-status";
 
 export default async function TasksPage({
   searchParams
@@ -48,8 +50,8 @@ export default async function TasksPage({
         <input name="q" defaultValue={filters.q} placeholder="Search tasks" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm outline-none focus:border-accent" />
         <select name="status" defaultValue={filters.status ?? ""} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
           <option value="">All statuses</option>
-          {["Assigned", "InProgress", "WaitingOnStephen", "WaitingOnClient", "Completed", "Blocked"].map((status) => (
-            <option key={status} value={status}>{status}</option>
+          {taskStatusOptions.map((status) => (
+            <option key={status.value} value={status.value}>{status.label}</option>
           ))}
         </select>
         <select name="priority" defaultValue={filters.priority ?? ""} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
@@ -88,7 +90,7 @@ export default async function TasksPage({
             <select name="priority" defaultValue="Medium" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
               {["Low", "Medium", "High", "Urgent"].map((priority) => <option key={priority} value={priority}>{priority}</option>)}
             </select>
-            <input name="dueDate" type="datetime-local" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
+            <DateTimePicker name="dueDate" label="Task due date" helper="Optional deadline shown in the assignee's timezone." timezone={user.timezone} optional />
             <select name="approverId" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
               <option value="">Approver</option>
               {users.filter((row) => row.role.name === "Founder").map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
@@ -109,7 +111,7 @@ export default async function TasksPage({
           <Link key="title" href={`/tasks/${task.id}`} className="font-medium text-white hover:text-accent">
             {task.title}
           </Link>,
-          <Badge key="status">{task.status}</Badge>,
+          <Badge key="status">{formatTaskStatus(task.status)}</Badge>,
           task.priority,
           task.client?.company ?? task.lead?.company ?? "Internal"
         ])}

@@ -117,6 +117,7 @@ describe("dashboard snapshot", () => {
     const snapshot = await getDashboardSnapshot(user);
 
     expect(snapshot.tasks[0]?.due).toContain("2026");
+    expect(snapshot.tasks[0]?.state).toBe("Not Started");
     expect(snapshot.approvals[0]?.deadline).toContain("2026");
     expect(snapshot.activity[0]?.time).toContain("2026");
   });

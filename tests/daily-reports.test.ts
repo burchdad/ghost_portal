@@ -6,6 +6,9 @@ const prismaMock = {
     findUnique: vi.fn(),
     upsert: vi.fn()
   },
+  activity: {
+    create: vi.fn()
+  },
   auditLog: {
     create: vi.fn()
   }
@@ -64,5 +67,31 @@ describe("daily report workflow", () => {
         submit: true
       })
     ).rejects.toThrow("Shift end must be after shift start");
+  });
+
+  it("stores Alex's five-minute zero-break shift as worked minutes divided by 60", async () => {
+    prismaMock.dailyReport.findUnique.mockResolvedValue(null);
+    prismaMock.dailyReport.upsert.mockResolvedValue({
+      id: "report_2",
+      reportDate: new Date("2026-07-19T00:00:00.000Z"),
+      status: "Submitted"
+    });
+    prismaMock.activity.create.mockResolvedValue({ id: "activity_1" });
+    prismaMock.auditLog.create.mockResolvedValue({ id: "audit_1" });
+
+    await submitDailyReport({
+      reportDate: "2026-07-19",
+      shiftStart: "2026-07-19T02:10:00.000Z",
+      shiftEnd: "2026-07-19T02:15:00.000Z",
+      breakMinutes: 0,
+      completed: "Completed onboarding",
+      inProgress: "Tasks",
+      tomorrowPriorities: "Follow ups",
+      submit: true
+    });
+
+    const upsertInput = prismaMock.dailyReport.upsert.mock.calls[0]?.[0];
+    expect(Number(upsertInput.create.hoursWorked)).toBeCloseTo(5 / 60, 5);
+    expect(Number(upsertInput.update.hoursWorked)).toBeCloseTo(5 / 60, 5);
   });
 });
