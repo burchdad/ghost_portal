@@ -1036,20 +1036,32 @@ model AnnouncementRead {
 }
 
 model FeedbackSubmission {
-  id              String         @id @default(cuid())
-  type            FeedbackType
-  title           String
-  description     String
-  pageOrFeature   String?
-  severity        Priority       @default(Medium)
-  attachmentId    String?
-  submittedById   String
-  status          FeedbackStatus @default(New)
-  founderResponse String?
-  submittedBy     User           @relation(fields: [submittedById], references: [id])
-  files           FileAsset[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  supportKey         String?        @unique
+  type               FeedbackType
+  title              String
+  description        String
+  pageOrFeature      String?
+  missionControlArea String?
+  expectedResult     String?
+  actualResult       String?
+  workaroundTried    String?
+  blocked            Boolean        @default(false)
+  severity           Priority       @default(Medium)
+  attachmentId       String?
+  submittedById      String
+  status             FeedbackStatus @default(New)
+  agentSummary       String?
+  founderResponse    String?
+  resolutionNotes    String?
+  resolvedAt         DateTime?
+  submittedBy        User           @relation(fields: [submittedById], references: [id])
+  files              FileAsset[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([status, severity, createdAt])
+  @@index([submittedById, status])
 }
 
 model TrialSettings {

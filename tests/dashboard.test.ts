@@ -20,6 +20,9 @@ const prismaMock = {
     findMany: vi.fn(),
     count: vi.fn()
   },
+  feedbackSubmission: {
+    count: vi.fn()
+  },
   onboardingModule: {
     count: vi.fn()
   },
@@ -111,6 +114,7 @@ describe("dashboard snapshot", () => {
     ]);
     prismaMock.task.count.mockResolvedValue(1);
     prismaMock.approval.count.mockResolvedValue(1);
+    prismaMock.feedbackSubmission.count.mockResolvedValue(2);
   });
 
   it("formats timezone-aware dashboard dates without unsupported Intl options", async () => {
@@ -130,6 +134,7 @@ describe("dashboard snapshot", () => {
     expect(snapshot.scope.hoursLabel).toBe("My submitted hours: 4.0 this week.");
     expect(snapshot.scope.progressAction).toBe("Submit end-of-day report");
     expect(snapshot.scope.progressHref).toBe("/daily-reports/new");
+    expect(snapshot.novaSummary).toContain("2 open support tickets");
   });
 
   it("scopes Founder dashboard wording and trial metrics to Alex", async () => {
@@ -140,6 +145,7 @@ describe("dashboard snapshot", () => {
     expect(snapshot.scope.hoursLabel).toBe("Alex has submitted 4.0 hours this week.");
     expect(snapshot.scope.progressAction).toBe("Review daily reports");
     expect(snapshot.scope.progressHref).toBe("/daily-reports");
+    expect(snapshot.novaSummary).toContain("2 open support tickets");
     expect(prismaMock.task.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { ownerId: "user_alex", archivedAt: null }
     }));

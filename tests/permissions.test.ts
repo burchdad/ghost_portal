@@ -20,6 +20,11 @@ describe("role permissions", () => {
     expect(hasPermission(alex, "tasks:update:assigned")).toBe(true);
   });
 
+  it("lets Operations submit support tickets without triaging Mission Control", () => {
+    expect(hasPermission(alex, "support:create")).toBe(true);
+    expect(hasPermission(alex, "support:triage")).toBe(false);
+  });
+
   it("blocks Operations from credentials and finance", () => {
     expect(hasPermission(alex, "credentials:read")).toBe(false);
     expect(hasPermission(alex, "finance:read")).toBe(false);

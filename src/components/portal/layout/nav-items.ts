@@ -7,11 +7,11 @@ import {
   FileText,
   Folder,
   LayoutDashboard,
+  LifeBuoy,
   Megaphone,
   Send,
   MessageSquareText,
   Settings,
-  Sparkles,
   Target,
   Users,
   Workflow
@@ -34,7 +34,8 @@ export const portalNavItems = [
   { label: "Waiting on Stephen", href: "/approvals", icon: Bell, permission: "approvals:request" },
   { label: "Announcements", href: "/announcements", icon: Megaphone, permission: "announcements:read" },
   { label: "Notifications", href: "/notifications", icon: Bell },
-  { label: "Mission Feedback", href: "/feedback", icon: Sparkles, permission: "feedback:create" },
+  { label: "Support Agent", href: "/support", icon: LifeBuoy, permission: "support:create" },
+  { label: "Mission Control Support", href: "/admin/support", icon: MessageSquareText, permission: "support:triage" },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Admin", href: "/admin/users", icon: MessageSquareText, permission: "admin:access" }
 ] satisfies Array<{ label: string; href: string; icon: typeof LayoutDashboard; permission?: Permission }>;

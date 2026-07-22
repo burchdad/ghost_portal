@@ -172,18 +172,26 @@ export async function buildNovaSummary(user: SessionUser) {
   const prisma = getPrisma();
   const trialSubject = await getTrialSubjectForViewer(user);
   const subjectName = trialSubject.preferredName ?? trialSubject.name;
-  const taskCount = await prisma.task.count({
-    where: user.role === "Founder" ? { ownerId: trialSubject.id, archivedAt: null } : { ownerId: user.id, archivedAt: null }
-  });
-  const approvalCount = await prisma.approval.count({
-    where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id, status: { in: ["Open", "InReview"] } }
-  });
+  const [taskCount, approvalCount, supportTicketCount] = await Promise.all([
+    prisma.task.count({
+      where: user.role === "Founder" ? { ownerId: trialSubject.id, archivedAt: null } : { ownerId: user.id, archivedAt: null }
+    }),
+    prisma.approval.count({
+      where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id, status: { in: ["Open", "InReview"] } }
+    }),
+    prisma.feedbackSubmission.count({
+      where:
+        user.role === "Founder"
+          ? { status: { in: ["New", "Reviewing", "Planned", "InProgress"] } }
+          : { submittedById: user.id, status: { in: ["New", "Reviewing", "Planned", "InProgress"] } }
+    })
+  ]);
 
   if (user.role === "Founder") {
-    return `You have ${approvalCount} open decision items and ${taskCount} visible active tasks for ${subjectName}. Review approvals, ${subjectName}'s trial progress, and recent audit activity before assigning new work.`;
+    return `You have ${approvalCount} open decision items, ${taskCount} visible active tasks for ${subjectName}, and ${supportTicketCount} open support tickets. Review approvals, ${subjectName}'s trial progress, support queue, and recent audit activity before assigning new work.`;
   }
 
-  return `You have ${taskCount} assigned active tasks and ${approvalCount} open requests waiting on Stephen. Focus on onboarding, due tasks, and your end-of-day report.`;
+  return `You have ${taskCount} assigned active tasks, ${approvalCount} open requests waiting on Stephen, and ${supportTicketCount} open support tickets. Focus on onboarding, due tasks, support updates, and your end-of-day report.`;
 }
 
 function buildPriorities(overdueTasks: number, approvals: number, onboardingPercent: number, subjectName?: string): DashboardSnapshot["priorities"] {
