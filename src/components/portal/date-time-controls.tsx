@@ -61,9 +61,10 @@ export function TimezoneDisplay({ timezone }: { timezone: string }) {
   return <p className="text-xs font-medium text-accent">Times shown in {timezone}</p>;
 }
 
-export function BreakDurationSelect({ name = "breakMinutes", label, helper, className }: { name?: string; label: string; helper?: string; className?: string }) {
-  const [selected, setSelected] = useState("0");
-  const [customMinutes, setCustomMinutes] = useState("0");
+export function BreakDurationSelect({ name = "breakMinutes", label, helper, className, defaultValue }: { name?: string; label: string; helper?: string; className?: string; defaultValue?: number | string | null }) {
+  const initialMinutes = String(defaultValue ?? 0);
+  const [selected, setSelected] = useState(["0", "15", "30", "45", "60"].includes(initialMinutes) ? initialMinutes : "custom");
+  const [customMinutes, setCustomMinutes] = useState(initialMinutes);
   const submittedValue = selected === "custom" ? customMinutes : selected;
 
   return (

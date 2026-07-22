@@ -3,6 +3,7 @@ import { getTrialSubjectForViewer } from "@/server/data/trial-subject";
 import { getPrisma } from "@/server/db/prisma";
 import { hasPermission } from "@/server/permissions/roles";
 import { formatTaskActivityTarget, formatTaskStatus } from "@/lib/task-status";
+import { getTimeClockSnapshot, type TimeClockSnapshot } from "@/server/data/time-clock";
 
 export type DashboardSnapshot = {
   greeting: string;
@@ -27,6 +28,7 @@ export type DashboardSnapshot = {
   activity: Array<{ actor: string; action: string; target: string; time: string }>;
   hoursThisWeek: string;
   novaSummary: string;
+  timeClock: TimeClockSnapshot;
 };
 
 export async function getDashboardSnapshot(user: SessionUser): Promise<DashboardSnapshot> {
@@ -37,7 +39,7 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
   const isFounderView = user.role === "Founder";
   const canSeeAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
 
-  const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows] = await Promise.all([
+  const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows, timeClock] = await Promise.all([
     prisma.task.findMany({
       where: { ownerId: trialSubject.id, archivedAt: null },
       include: { owner: true },
@@ -104,7 +106,8 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
       include: { actor: true },
       orderBy: { createdAt: "desc" },
       take: 5
-    })
+    }),
+    getTimeClockSnapshot(user)
   ]);
 
   const onboardingPercent = modules === 0 ? 0 : Math.round((completions / modules) * 100);
@@ -164,7 +167,8 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
       time: formatDate(event.createdAt, user.timezone)
     })),
     hoursThisWeek,
-    novaSummary: await buildNovaSummary(user)
+    novaSummary: await buildNovaSummary(user),
+    timeClock
   };
 }
 

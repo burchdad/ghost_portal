@@ -30,7 +30,8 @@ const prismaMock = {
     count: vi.fn()
   },
   dailyReport: {
-    findMany: vi.fn()
+    findMany: vi.fn(),
+    findUnique: vi.fn()
   },
   activity: {
     findMany: vi.fn()
@@ -104,6 +105,7 @@ describe("dashboard snapshot", () => {
     prismaMock.onboardingModule.count.mockResolvedValue(4);
     prismaMock.onboardingCompletion.count.mockResolvedValue(2);
     prismaMock.dailyReport.findMany.mockResolvedValue([{ hoursWorked: 4 }]);
+    prismaMock.dailyReport.findUnique.mockResolvedValue(null);
     prismaMock.activity.findMany.mockResolvedValue([
       {
         actor: { preferredName: "Stephen", name: "Stephen Burch" },
