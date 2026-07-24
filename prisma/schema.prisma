@@ -52,14 +52,39 @@ enum Priority {
 
 enum LeadStage {
   New
+  Researching
+  ReadyToCall
+  Attempted
+  Connected
   Contacted
   Qualified
+  Interested
+  FollowUp
+  MeetingScheduled
   Discovery
   Proposal
   Negotiation
   Won
   Lost
   Nurture
+  DoNotContact
+}
+
+enum LeadInterestLevel {
+  Unknown
+  Low
+  Possible
+  Interested
+  StrongInterest
+  MeetingRequested
+}
+
+enum LeadHandoffStatus {
+  OpsOnly
+  SalesReadyNeedsDiscovery
+  QualifiedAwaitingFounderReview
+  SentToMissionControl
+  ReturnedForInformation
 }
 
 enum RiskStatus {
@@ -108,6 +133,14 @@ enum KnowledgeStatus {
 
 enum FeedbackType {
   Bug
+  EmployeeOnboardingBeta
+  ConfusingWording
+  BrokenWorkflow
+  PermissionIssue
+  TrainingIssue
+  PricingQuestion
+  ServiceQuestion
+  ProcessImprovement
   WorkflowIssue
   FeatureRequest
   ConfusingInterface
@@ -115,6 +148,32 @@ enum FeedbackType {
   NovaSuggestion
   MissionControlSuggestion
   Other
+}
+
+enum WorkShiftStatus {
+  ClockedIn
+  OnBreak
+  Completed
+  AwaitingCorrection
+}
+
+enum TimeCorrectionStatus {
+  Requested
+  UnderReview
+  Approved
+  Rejected
+}
+
+enum AcademyQuestionDifficulty {
+  Beginner
+  Intermediate
+  Advanced
+}
+
+enum AcademyQuestionPublishStatus {
+  Draft
+  Approved
+  Retired
 }
 
 enum FeedbackStatus {
@@ -172,6 +231,7 @@ enum KnowledgeAttemptStatus {
   Passed
   Failed
   FounderReview
+  NeedsReview
 }
 
 enum ModuleResourceType {
@@ -194,24 +254,90 @@ enum SOPCategory {
   ContentMarketingSupport
 }
 
+enum ServiceCategory {
+  Websites
+  WebsiteCare
+  AIAutomation
+  CustomAISystems
+  LeadGeneration
+  SEOAEO_GEO
+  Marketing
+  SocialMedia
+  Applications
+  DigitalBusinessCards
+  Consulting
+  FractionalLeadership
+  CustomDevelopment
+}
+
+enum PricingStatus {
+  Provisional
+  UnderReview
+  Approved
+  FounderManagedRequired
+  CustomScope
+  Retired
+  Inactive
+}
+
+enum OfferType {
+  GrowthPartnership
+  StandaloneService
+  ProductSubscription
+  CustomEnterpriseEngagement
+}
+
+enum PriceDisplayMode {
+  Fixed
+  Range
+  FounderReviewRequired
+  CustomPricing
+}
+
+enum PricingBasis {
+  Project
+  MonthlyRetainer
+  Subscription
+  PerUnit
+  UsageBased
+  Custom
+}
+
+enum FinancingStatus {
+  FinancingUnavailable
+  FinancingAvailable
+  FinancingApplicationRequired
+  ThirdPartyFinancing
+  CustomFinancingTerms
+}
+
+enum PriceFrequency {
+  OneTime
+  Monthly
+  Annual
+  PerUnitMonthly
+  UsageBased
+}
+
 model User {
-  id                       String                   @id @default(cuid())
+  id                       String                        @id @default(cuid())
   name                     String
   preferredName            String?
-  email                    String                   @unique
-  emailVerified            Boolean                  @default(false)
+  email                    String                        @unique
+  emailVerified            Boolean                       @default(false)
   passwordHash             String?
   image                    String?
-  status                   UserStatus               @default(Invited)
-  timezone                 String                   @default("America/Chicago")
+  status                   UserStatus                    @default(Invited)
+  timezone                 String                        @default("America/Chicago")
   roleId                   String
-  role                     Role                     @relation(fields: [roleId], references: [id])
+  role                     Role                          @relation(fields: [roleId], references: [id])
   sessions                 Session[]
   accounts                 Account[]
-  assignedTasks            Task[]                   @relation("TaskOwner")
-  createdTasks             Task[]                   @relation("TaskCreator")
-  approvedTasks            Task[]                   @relation("TaskApprover")
+  assignedTasks            Task[]                        @relation("TaskOwner")
+  createdTasks             Task[]                        @relation("TaskCreator")
+  approvedTasks            Task[]                        @relation("TaskApprover")
   assignedLeads            Lead[]
+  createdLeads             Lead[]                        @relation("LeadCreator")
   clientAccess             ClientAccess[]
   leadAccess               LeadAccess[]
   fileAccess               FileAccess[]
@@ -219,13 +345,14 @@ model User {
   ownedArticles            KnowledgeArticle[]
   authoredAnnouncements    Announcement[]
   announcementReads        AnnouncementRead[]
-  approvalsOwned           Approval[]               @relation("ApprovalRequester")
-  approvalsApproved        Approval[]               @relation("ApprovalDecider")
-  authoredDrafts           DraftCommunication[]     @relation("DraftAuthor")
-  approvedDrafts           DraftCommunication[]     @relation("DraftApprover")
-  sentDrafts               DraftCommunication[]     @relation("DraftSender")
+  approvalsOwned           Approval[]                    @relation("ApprovalRequester")
+  approvalsApproved        Approval[]                    @relation("ApprovalDecider")
+  authoredDrafts           DraftCommunication[]          @relation("DraftAuthor")
+  approvedDrafts           DraftCommunication[]          @relation("DraftApprover")
+  sentDrafts               DraftCommunication[]          @relation("DraftSender")
+  callActivities           CallActivity[]
   reports                  DailyReport[]
-  reviewedReports          DailyReport[]            @relation("ReportReviewer")
+  reviewedReports          DailyReport[]                 @relation("ReportReviewer")
   comments                 Comment[]
   activity                 Activity[]
   notifications            Notification[]
@@ -233,17 +360,29 @@ model User {
   files                    FileAsset[]
   feedback                 FeedbackSubmission[]
   trialSettings            TrialSettings?
-  learningPathAssignments  LearningPathAssignment[] @relation("AcademyLearner")
-  assignedLearningPaths    LearningPathAssignment[] @relation("AcademyAssigner")
+  servicesUpdated          ServiceOffering[]             @relation("ServiceUpdatedBy")
+  approvedServiceOfferings ServiceOffering[]             @relation("ServiceApprovedBy")
+  pricingHistory           PricingHistory[]              @relation("PricingHistoryChangedBy")
+  packagesUpdated          ServicePackage[]              @relation("PackageUpdatedBy")
+  pricingRequestsOwned     PricingApprovalRequest[]      @relation("PricingApprovalRequester")
+  pricingRequestsDecided   PricingApprovalRequest[]      @relation("PricingApprovalDecider")
+  pricingAcknowledgements  PricingAcknowledgement[]
+  workShifts               WorkShift[]
+  timeCorrectionsRequested TimeCorrectionRequest[]       @relation("TimeCorrectionRequester")
+  timeCorrectionsReviewed  TimeCorrectionRequest[]       @relation("TimeCorrectionReviewer")
+  learningPathAssignments  LearningPathAssignment[]      @relation("AcademyLearner")
+  assignedLearningPaths    LearningPathAssignment[]      @relation("AcademyAssigner")
   academyCompletions       ModuleCompletion[]
+  knowledgeCheckUnlocks    KnowledgeCheckAttemptUnlock[] @relation("KnowledgeCheckUnlockLearner")
+  grantedKnowledgeUnlocks  KnowledgeCheckAttemptUnlock[] @relation("KnowledgeCheckUnlockManager")
   policyAcknowledgements   PolicyAcknowledgement[]
   academyNotes             EmployeeModuleNote[]
-  academyQuestions         EmployeeQuestion[]       @relation("AcademyQuestionLearner")
-  answeredAcademyQuestions EmployeeQuestion[]       @relation("AcademyQuestionAnswerer")
+  academyQuestions         EmployeeQuestion[]            @relation("AcademyQuestionLearner")
+  answeredAcademyQuestions EmployeeQuestion[]            @relation("AcademyQuestionAnswerer")
   academyProgress          AcademyProgress[]
   academyActivity          AcademyActivity[]
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
   archivedAt               DateTime?
 
   @@index([status])
@@ -367,37 +506,414 @@ model Contact {
 }
 
 model Lead {
-  id                  String               @id @default(cuid())
-  clientId            String?
-  company             String
-  contactName         String?
-  contactEmail        String?
-  contactPhone        String?
-  serviceInterest     String
-  estimatedValue      Decimal?
-  approvedValue       Decimal?
-  stage               LeadStage            @default(New)
-  lastContact         DateTime?
-  followUpDate        DateTime?
-  nextAction          String?
-  draftMessage        String?
-  notes               String?
-  approvalRequired    Boolean              @default(false)
-  approvalStatus      ApprovalStatus?
-  assignedUserId      String?
-  client              Client?              @relation(fields: [clientId], references: [id])
-  assignedUser        User?                @relation(fields: [assignedUserId], references: [id])
-  access              LeadAccess[]
-  approvals           Approval[]
-  files               FileAsset[]
-  draftCommunications DraftCommunication[]
-  tasks               Task[]
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  archivedAt          DateTime?
+  id                     String                   @id @default(cuid())
+  clientId               String?
+  company                String
+  contactName            String?
+  jobTitle               String?
+  contactEmail           String?
+  contactPhone           String?
+  website                String?
+  industry               String?
+  location               String?
+  timezone               String?
+  leadSource             String?
+  createdById            String?
+  whySelected            String?
+  existingTechnology     String?
+  websiteStatus          String?
+  marketingStatus        String?
+  aiOpportunity          String?
+  suggestedService       String?
+  conversationAngle      String?
+  businessAge            String?
+  employeeCount          String?
+  approximateRevenue     String?
+  currentWebsite         String?
+  currentLeadFlow        String?
+  currentCrm             String?
+  currentAdvertising     String?
+  currentAutomation      String?
+  mainPainPoint          String?
+  urgency                String?
+  budgetComfort          String?
+  decisionMakerStatus    String?
+  desiredOutcome         String?
+  internalCapacity       String?
+  numberOfLocations      String?
+  regulatedIndustry      Boolean                  @default(false)
+  existingVendor         String?
+  preferredOfferType     OfferType?
+  recommendedGhostOffer  String?
+  recommendedServiceId   String?
+  needDiscovered         String[]                 @default([])
+  interestLevel          LeadInterestLevel        @default(Unknown)
+  qualificationSummary   String?
+  appointmentStatus      String?
+  handoffStatus          LeadHandoffStatus        @default(OpsOnly)
+  missionControlStatus   String                   @default("Not Sent")
+  missionControlStage    String?
+  missionControlPayload  Json?
+  missionControlSyncedAt DateTime?
+  needsStephenReview     Boolean                  @default(false)
+  needsStephenReason     String?
+  valueSuggestionRange   String?
+  previousEmailHistory   String?
+  previousCallHistory    String?
+  serviceInterest        String
+  estimatedValue         Decimal?
+  approvedValue          Decimal?
+  stage                  LeadStage                @default(New)
+  callResult             String?
+  lastContact            DateTime?
+  followUpDate           DateTime?
+  appointmentDate        DateTime?
+  nextAction             String?
+  draftMessage           String?
+  notes                  String?
+  approvalRequired       Boolean                  @default(false)
+  doNotContact           Boolean                  @default(false)
+  approvalStatus         ApprovalStatus?
+  assignedUserId         String?
+  client                 Client?                  @relation(fields: [clientId], references: [id])
+  createdBy              User?                    @relation("LeadCreator", fields: [createdById], references: [id])
+  assignedUser           User?                    @relation(fields: [assignedUserId], references: [id])
+  recommendedService     ServiceOffering?         @relation("LeadRecommendedService", fields: [recommendedServiceId], references: [id])
+  access                 LeadAccess[]
+  approvals              Approval[]
+  files                  FileAsset[]
+  draftCommunications    DraftCommunication[]
+  tasks                  Task[]
+  callActivities         CallActivity[]
+  pricingRequests        PricingApprovalRequest[]
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  archivedAt             DateTime?
 
   @@index([stage, followUpDate])
   @@index([assignedUserId])
+  @@index([leadSource])
+  @@index([handoffStatus, missionControlStatus])
+}
+
+model CallActivity {
+  id                  String    @id @default(cuid())
+  leadId              String
+  userId              String
+  outcome             String
+  summary             String
+  personReached       String?
+  decisionMakerStatus String?
+  objection           String?
+  callbackRequested   Boolean   @default(false)
+  doNotContact        Boolean   @default(false)
+  recordingReference  String?
+  nextAction          String?
+  followUpDate        DateTime?
+  occurredAt          DateTime  @default(now())
+  lead                Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user                User      @relation(fields: [userId], references: [id])
+  createdAt           DateTime  @default(now())
+
+  @@index([leadId, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+model ServiceOffering {
+  id                          String                   @id @default(cuid())
+  slug                        String                   @unique
+  name                        String
+  offerType                   OfferType                @default(StandaloneService)
+  category                    ServiceCategory
+  shortExplanation            String
+  internalExplanation         String
+  problemsSolved              String[]
+  idealCustomer               String
+  includedDeliverables        String[]
+  optionalAddOns              String[]
+  oneTimePriceCents           Int?
+  monthlyPriceCents           Int?
+  priceRangeMinCents          Int?
+  priceRangeMaxCents          Int?
+  setupFeeCents               Int?
+  annualFeeCents              Int?
+  internalMinimumCents        Int?
+  standardPriceCents          Int?
+  standardMonthlyPriceCents   Int?
+  discountFloorCents          Int?
+  targetGrossMargin           Decimal?
+  founderSetupHours           Decimal?
+  founderMonthlyHours         Decimal?
+  contractorSetupHours        Decimal?
+  contractorMonthlyHours      Decimal?
+  founderHourlyCostCents      Int?
+  contractorHourlyCostCents   Int?
+  estimatedSetupHours         Decimal?
+  estimatedMonthlyHours       Decimal?
+  directCostsCents            Int?
+  softwareCostsCents          Int?
+  apiCostsCents               Int?
+  hostingCostsCents           Int?
+  dataProviderCostsCents      Int?
+  advertisingManagementCents  Int?
+  supportReserveCents         Int?
+  riskReserveCents            Int?
+  paymentProcessingFeePercent Decimal?
+  contractorCostsCents        Int?
+  noSetupFeeRequired          Boolean                  @default(false)
+  reviewPriority              Int                      @default(99)
+  reviewPriorityLabel         String?
+  changeReason                String?
+  pricingStatus               PricingStatus            @default(FounderManagedRequired)
+  pricingBasis                PricingBasis?
+  priceDisplayMode            PriceDisplayMode         @default(FounderReviewRequired)
+  approvedAt                  DateTime?
+  approvedById                String?
+  approvedBy                  User?                    @relation("ServiceApprovedBy", fields: [approvedById], references: [id])
+  reviewDate                  DateTime?
+  paymentTerms                String?
+  minimumEngagement           String?
+  minimumTermMonths           Int?
+  cancellationTerms           String?
+  earlyCancellationTerms      String?
+  buyoutAmountCents           Int?
+  typicalTimeline             String?
+  qualificationQuestions      String[]
+  commonObjections            String[]
+  approvedResponse            String
+  desiredNextStep             String
+  alexMayQuote                Boolean                  @default(false)
+  employeeQuotePermission     Boolean                  @default(false)
+  founderApprovalRequired     Boolean                  @default(true)
+  financingStatus             FinancingStatus          @default(FinancingUnavailable)
+  financingNotes              String?
+  websiteIncluded             Boolean                  @default(false)
+  websiteInclusion            String?
+  websiteType                 String?
+  pageAllowance               String?
+  featureAllowance            String?
+  designLevel                 String?
+  revisionAllowance           String?
+  buildValueCents             Int?
+  monthlyRecoveryAmountCents  Int?
+  transferEligibility         String?
+  ownershipTransferTiming     String?
+  websiteOwnershipTerms       String?
+  supportLevel                String?
+  supportResponseTarget       String?
+  reportingFrequency          String?
+  meetingFrequency            String?
+  scopeAssumptions            String[]                 @default([])
+  exclusions                  String[]                 @default([])
+  customerFacingNotes         String?
+  customerFacingInclusions    String[]                 @default([])
+  customerFacingExclusions    String[]                 @default([])
+  approvedWording             String?
+  escalationTriggers          String[]                 @default([])
+  upgradePath                 String?
+  downgradePath               String?
+  requiredAcknowledgement     String?
+  active                      Boolean                  @default(true)
+  displayOrder                Int                      @default(0)
+  internalNotes               String?
+  founderNotes                String?
+  pricingNotes                String?
+  customPricingFields         Json?
+  approvalThreshold           String?
+  effectiveDate               DateTime?
+  updatedById                 String?
+  updatedBy                   User?                    @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
+  pricingTiers                PricingTier[]
+  addOns                      ServiceAddOn[]
+  recurringFees               RecurringFee[]
+  setupFees                   SetupFee[]
+  discounts                   ServiceDiscount[]
+  pricingHistory              PricingHistory[]
+  packageItems                PackageItem[]
+  pricingRequests             PricingApprovalRequest[]
+  recommendedLeads            Lead[]                   @relation("LeadRecommendedService")
+  acknowledgements            PricingAcknowledgement[]
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+  archivedAt                  DateTime?
+
+  @@index([active, displayOrder])
+  @@index([category])
+  @@index([offerType, active, displayOrder])
+  @@index([pricingStatus])
+  @@index([alexMayQuote, founderApprovalRequired])
+}
+
+model PricingAcknowledgement {
+  id             String          @id @default(cuid())
+  userId         String
+  serviceId      String
+  serviceVersion DateTime
+  acknowledgedAt DateTime        @default(now())
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service        ServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serviceId, serviceVersion])
+  @@index([serviceId, acknowledgedAt])
+  @@index([userId, acknowledgedAt])
+}
+
+model PricingApprovalRequest {
+  id                    String           @id @default(cuid())
+  leadId                String?
+  serviceId             String?
+  business              String
+  recommendedOffer      String
+  currentPain           String
+  requestedPricing      String?
+  requestedDiscount     String?
+  requestedTerm         String?
+  requestedAddOns       String?
+  competitorInformation String?
+  budgetIndication      String?
+  recommendation        String
+  urgency               Priority         @default(Medium)
+  meetingDate           DateTime?
+  notes                 String?
+  status                ApprovalStatus   @default(Open)
+  founderResponse       String?
+  conditions            String?
+  expiresAt             DateTime?
+  requesterId           String
+  deciderId             String?
+  decisionAt            DateTime?
+  lead                  Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  service               ServiceOffering? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  requester             User             @relation("PricingApprovalRequester", fields: [requesterId], references: [id])
+  decider               User?            @relation("PricingApprovalDecider", fields: [deciderId], references: [id])
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([leadId, status])
+  @@index([serviceId, status])
+  @@index([requesterId, status])
+}
+
+model PricingTier {
+  id            String          @id @default(cuid())
+  serviceId     String
+  name          String
+  description   String?
+  priceCents    Int?
+  monthlyCents  Int?
+  frequency     PriceFrequency?
+  includedUsage String?
+  active        Boolean         @default(true)
+  service       ServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([serviceId, active])
+}
+
+model ServiceAddOn {
+  id               String          @id @default(cuid())
+  serviceId        String
+  name             String
+  description      String?
+  priceCents       Int?
+  monthlyCents     Int?
+  approvalRequired Boolean         @default(false)
+  active           Boolean         @default(true)
+  service          ServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([serviceId, active])
+}
+
+model RecurringFee {
+  id           String          @id @default(cuid())
+  serviceId    String
+  name         String
+  monthlyCents Int?
+  notes        String?
+  service      ServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+}
+
+model SetupFee {
+  id               String          @id @default(cuid())
+  serviceId        String
+  name             String
+  priceCents       Int?
+  approvalRequired Boolean         @default(true)
+  notes            String?
+  service          ServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+}
+
+model ServiceDiscount {
+  id                      String          @id @default(cuid())
+  serviceId               String
+  name                    String
+  maxPercent              Int?
+  notes                   String?
+  requiresFounderApproval Boolean         @default(true)
+  active                  Boolean         @default(true)
+  service                 ServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt               DateTime        @default(now())
+}
+
+model ServicePackage {
+  id                        String        @id @default(cuid())
+  slug                      String        @unique
+  name                      String
+  description               String
+  setupPriceCents           Int?
+  monthlyPriceCents         Int?
+  discount                  String?
+  minimumTerm               String?
+  paymentSchedule           String?
+  includedUsage             String?
+  optionalAddOns            String[]
+  internalDeliveryCostCents Int?
+  employeeQuotePermission   Boolean       @default(false)
+  founderApprovalThreshold  String?
+  active                    Boolean       @default(false)
+  displayOrder              Int           @default(0)
+  updatedById               String?
+  updatedBy                 User?         @relation("PackageUpdatedBy", fields: [updatedById], references: [id])
+  items                     PackageItem[]
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+  archivedAt                DateTime?
+
+  @@index([active, displayOrder])
+}
+
+model PackageItem {
+  id        String          @id @default(cuid())
+  packageId String
+  serviceId String
+  quantity  Int             @default(1)
+  notes     String?
+  package   ServicePackage  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  service   ServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([packageId, serviceId])
+}
+
+model PricingHistory {
+  id            String           @id @default(cuid())
+  serviceId     String?
+  packageId     String?
+  changedById   String?
+  action        String
+  before        Json?
+  after         Json?
+  effectiveDate DateTime?
+  service       ServiceOffering? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  changedBy     User?            @relation("PricingHistoryChangedBy", fields: [changedById], references: [id])
+  createdAt     DateTime         @default(now())
+
+  @@index([serviceId, createdAt])
+  @@index([packageId, createdAt])
 }
 
 model LeadAccess {
@@ -568,9 +1084,9 @@ model Course {
 }
 
 model CourseModule {
-  id                      String                  @id @default(cuid())
-  sourceKey               String                  @unique
-  slug                    String                  @unique
+  id                      String                   @id @default(cuid())
+  sourceKey               String                   @unique
+  slug                    String                   @unique
   courseId                String
   title                   String
   summary                 String
@@ -578,31 +1094,34 @@ model CourseModule {
   body                    String
   sortOrder               Int
   estimatedMinutes        Int
-  required                Boolean                 @default(true)
-  contentType             AcademyContentType      @default(Learning)
-  published               Boolean                 @default(true)
-  audienceRoles           RoleName[]              @default([])
-  version                 Int                     @default(1)
-  acknowledgementRequired Boolean                 @default(false)
+  required                Boolean                  @default(true)
+  contentType             AcademyContentType       @default(Learning)
+  published               Boolean                  @default(true)
+  audienceRoles           RoleName[]               @default([])
+  version                 Int                      @default(1)
+  acknowledgementRequired Boolean                  @default(false)
   acknowledgementText     String?
-  knowledgeCheckRequired  Boolean                 @default(false)
-  minimumPassingScore     Int                     @default(80)
+  knowledgeCheckRequired  Boolean                  @default(false)
+  minimumPassingScore     Int                      @default(80)
   ownerId                 String?
   lastReviewed            DateTime?
   nextReviewDate          DateTime?
-  founderReviewRequired   Boolean                 @default(false)
-  seedManaged             Boolean                 @default(true)
+  founderReviewRequired   Boolean                  @default(false)
+  primarySopId            String?
+  primarySop              SOPArticle?              @relation("ModulePrimarySOP", fields: [primarySopId], references: [id])
+  seedManaged             Boolean                  @default(true)
   archivedAt              DateTime?
-  course                  Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course                  Course                   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   sections                ModuleSection[]
   resources               ModuleResource[]
   knowledgeCheck          KnowledgeCheck?
+  questionBank            KnowledgeCheckQuestion[]
   completions             ModuleCompletion[]
   acknowledgements        PolicyAcknowledgement[]
   notes                   EmployeeModuleNote[]
   questions               EmployeeQuestion[]
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   @@index([courseId, sortOrder])
   @@index([published, contentType])
@@ -633,24 +1152,35 @@ model ModuleResource {
 }
 
 model KnowledgeCheck {
-  id               String                   @id @default(cuid())
-  moduleId         String                   @unique
-  passingScore     Int                      @default(80)
-  unlimitedRetries Boolean                  @default(true)
-  module           CourseModule             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  id               String                        @id @default(cuid())
+  moduleId         String                        @unique
+  passingScore     Int                           @default(80)
+  unlimitedRetries Boolean                       @default(true)
+  module           CourseModule                  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   questions        KnowledgeCheckQuestion[]
   attempts         KnowledgeCheckAttempt[]
+  unlocks          KnowledgeCheckAttemptUnlock[]
 }
 
 model KnowledgeCheckQuestion {
-  id                    String                 @id @default(cuid())
+  id                    String                       @id @default(cuid())
   checkId               String
+  moduleId              String?
+  sopId                 String?
+  learningObjective     String?
   type                  KnowledgeQuestionType
   prompt                String
   explanation           String
+  incorrectExplanation  String?
+  difficulty            AcademyQuestionDifficulty    @default(Beginner)
+  status                AcademyQuestionPublishStatus @default(Approved)
+  createdById           String?
+  approvedById          String?
   sortOrder             Int
-  requiredFounderReview Boolean                @default(false)
-  check                 KnowledgeCheck         @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  requiredFounderReview Boolean                      @default(false)
+  check                 KnowledgeCheck               @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  module                CourseModule?                @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  sop                   SOPArticle?                  @relation(fields: [sopId], references: [id])
   options               KnowledgeCheckOption[]
 
   @@unique([checkId, sortOrder])
@@ -680,6 +1210,22 @@ model KnowledgeCheckAttempt {
   check         KnowledgeCheck         @relation(fields: [checkId], references: [id], onDelete: Cascade)
 
   @@index([checkId, userId, submittedAt])
+}
+
+model KnowledgeCheckAttemptUnlock {
+  id           String         @id @default(cuid())
+  checkId      String
+  userId       String
+  unlockedById String
+  reason       String?
+  usedAt       DateTime?
+  createdAt    DateTime       @default(now())
+  check        KnowledgeCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  user         User           @relation("KnowledgeCheckUnlockLearner", fields: [userId], references: [id], onDelete: Cascade)
+  unlockedBy   User           @relation("KnowledgeCheckUnlockManager", fields: [unlockedById], references: [id])
+
+  @@index([checkId, userId, usedAt])
+  @@index([unlockedById, createdAt])
 }
 
 model ModuleCompletion {
@@ -747,14 +1293,14 @@ model EmployeeQuestion {
 }
 
 model SOPArticle {
-  id                    String      @id @default(cuid())
-  sourceKey             String      @unique
-  slug                  String      @unique
+  id                    String                   @id @default(cuid())
+  sourceKey             String                   @unique
+  slug                  String                   @unique
   title                 String
   category              SOPCategory
   purpose               String
   owner                 String
-  audienceRoles         RoleName[]  @default([])
+  audienceRoles         RoleName[]               @default([])
   trigger               String
   requiredInputs        String[]
   body                  String
@@ -762,18 +1308,77 @@ model SOPArticle {
   escalationConditions  String[]
   completionCriteria    String[]
   relatedTemplates      String[]
-  version               Int         @default(1)
-  published             Boolean     @default(true)
-  seedManaged           Boolean     @default(true)
-  founderReviewRequired Boolean     @default(false)
+  version               Int                      @default(1)
+  published             Boolean                  @default(true)
+  seedManaged           Boolean                  @default(true)
+  founderReviewRequired Boolean                  @default(false)
   lastReviewed          DateTime?
   nextReviewDate        DateTime?
   steps                 SOPStep[]
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  primaryForModules     CourseModule[]           @relation("ModulePrimarySOP")
+  knowledgeQuestions    KnowledgeCheckQuestion[]
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
   archivedAt            DateTime?
 
   @@index([published, category])
+}
+
+model WorkShift {
+  id               String                  @id @default(cuid())
+  userId           String
+  startedAt        DateTime
+  endedAt          DateTime?
+  grossMinutes     Int?
+  breakMinutes     Int                     @default(0)
+  netMinutes       Int?
+  status           WorkShiftStatus         @default(ClockedIn)
+  correctionStatus TimeCorrectionStatus?
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  breaks           WorkBreak[]
+  corrections      TimeCorrectionRequest[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([userId, status])
+  @@index([startedAt])
+}
+
+model WorkBreak {
+  id              String    @id @default(cuid())
+  shiftId         String
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationMinutes Int?
+  note            String?
+  shift           WorkShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shiftId, startedAt])
+}
+
+model TimeCorrectionRequest {
+  id                     String               @id @default(cuid())
+  shiftId                String?
+  requesterId            String
+  requestedStartTime     DateTime?
+  requestedEndTime       DateTime?
+  requestedBreakDuration Int?
+  reason                 String
+  supportingNote         String?
+  status                 TimeCorrectionStatus @default(Requested)
+  founderComment         String?
+  reviewedById           String?
+  reviewedAt             DateTime?
+  shift                  WorkShift?           @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  requester              User                 @relation("TimeCorrectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  reviewedBy             User?                @relation("TimeCorrectionReviewer", fields: [reviewedById], references: [id])
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  @@index([requesterId, status])
+  @@index([shiftId])
 }
 
 model SOPStep {

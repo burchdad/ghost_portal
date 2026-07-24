@@ -10,7 +10,7 @@ import { recordActivity } from "@/server/workflows/activity";
 import { createNotification } from "@/server/workflows/notifications";
 
 const feedbackSchema = z.object({
-  type: z.enum(["Bug", "WorkflowIssue", "FeatureRequest", "ConfusingInterface", "MissingInformation", "NovaSuggestion", "MissionControlSuggestion", "Other"]),
+  type: z.enum(["Bug", "EmployeeOnboardingBeta", "ConfusingWording", "BrokenWorkflow", "PermissionIssue", "TrainingIssue", "PricingQuestion", "ServiceQuestion", "ProcessImprovement", "WorkflowIssue", "FeatureRequest", "ConfusingInterface", "MissingInformation", "NovaSuggestion", "MissionControlSuggestion", "Other"]),
   title: z.string().min(3),
   description: z.string().min(3),
   pageOrFeature: z.string().optional(),

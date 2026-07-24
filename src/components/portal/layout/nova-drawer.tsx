@@ -22,15 +22,15 @@ export function NovaDrawer({ user, summary }: { user: SessionUser; summary: stri
             <Bot className="size-5" />
           </div>
           <div>
-            <p className="font-medium">Permission-safe summary</p>
-            <p className="text-xs text-white/45">Scoped to {user.role}</p>
+            <p className="font-medium">Nova Briefing</p>
+            <p className="text-xs text-white/45">Scoped to your permissions</p>
           </div>
         </div>
         <p className="text-sm leading-6 text-white/62">{summary}</p>
       </Card>
 
       <div className="mt-5 space-y-3">
-        {["What should I work on?", "Draft a client follow-up", "Show overdue work", "Explain this SOP"].map((prompt) => (
+        {promptsForRole(user.role).map((prompt) => (
           <button
             key={prompt}
             className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm text-white/70 transition hover:bg-white/[0.08]"
@@ -42,4 +42,26 @@ export function NovaDrawer({ user, summary }: { user: SessionUser; summary: stri
       </div>
     </aside>
   );
+}
+
+function promptsForRole(role: SessionUser["role"]) {
+  if (role === "Operations") {
+    return [
+      "What should I work on today?",
+      "Which leads should I call?",
+      "Which offer best fits this lead?",
+      "Partnership or standalone service?",
+      "What price am I allowed to quote?",
+      "Does this need Stephen's approval?",
+      "Compare Founder Launch and Startup",
+      "Explain website ownership terms",
+      "What add-ons may apply?",
+      "Prepare a discovery-call handoff",
+      "Draft a follow-up",
+      "Show my onboarding progress",
+      "Prepare my end-of-day report"
+    ];
+  }
+
+  return ["What needs attention today?", "Show overdue work", "Summarize trial performance", "Review approvals", "Explain this SOP"];
 }

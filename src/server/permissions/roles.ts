@@ -41,6 +41,7 @@ export const permissions = [
   "onboarding:complete",
   "onboarding:manage",
   "permissions:manage",
+  "pricing:read",
   "pricing:manage",
   "projects:read:assigned",
   "projects:update:status",
@@ -85,6 +86,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "knowledge:read",
     "leads:read:assigned",
     "leads:update:assigned",
+    "pricing:read",
     "projects:read:assigned",
     "projects:update:status",
     "reports:submit",
@@ -102,6 +104,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "knowledge:read",
     "leads:read:assigned",
     "leads:update:assigned",
+    "pricing:read",
     "reports:submit",
     "tasks:read:assigned",
     "tasks:update:assigned"

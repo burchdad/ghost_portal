@@ -30,7 +30,13 @@ describe("role permissions", () => {
     expect(hasPermission(alex, "finance:read")).toBe(false);
   });
 
+  it("allows Operations to view approved pricing but blocks pricing edits", () => {
+    expect(hasPermission(alex, "pricing:read")).toBe(true);
+    expect(hasPermission(alex, "pricing:manage")).toBe(false);
+  });
+
   it("allows Founder to manage permissions", () => {
     expect(hasPermission(stephen, "permissions:manage")).toBe(true);
+    expect(hasPermission(stephen, "pricing:manage")).toBe(true);
   });
 });

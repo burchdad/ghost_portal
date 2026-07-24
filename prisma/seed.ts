@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/server/auth/password";
 import { seedAcademy } from "../src/server/academy/seed";
 import { permissions, rolePermissions, roles } from "../src/server/permissions/roles";
+import { seedPricing } from "../src/server/pricing/seed";
 
 const prisma = new PrismaClient();
 
@@ -218,22 +219,32 @@ async function main() {
     }
   });
 
-  await prisma.task.upsert({
-    where: { id: "seed_task_trial_onboarding" },
-    update: {},
-    create: {
-      id: "seed_task_trial_onboarding",
-      title: "Complete Ghost Portal onboarding modules",
-      description: "Finish required onboarding modules and note questions for Stephen.",
-      status: "Assigned",
-      priority: "High",
-      ownerId: alex.id,
-      approverId: stephen.id,
-      createdById: stephen.id,
-      projectId: project.id,
-      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000)
-    }
-  });
+  const firstWeekTasks = [
+    ["seed_task_trial_day_1", "Day 1: Complete onboarding and portal review", "Complete company onboarding, review active services and approved pricing, review security requirements, review the Ghost Discovery Framework, submit questions, test navigation, and submit initial feedback.", 1],
+    ["seed_task_trial_day_2", "Day 2: Research leads and begin approved outreach", "Review assigned leads, research context, practice discovery conversations, refine questions, begin approved outreach, log every call, and submit a daily report.", 2],
+    ["seed_task_trial_day_3", "Day 3: Continue calls and document objections", "Continue calls, complete follow-ups, prepare draft communications, identify common objections, suggest framework improvements, and submit a daily report.", 3],
+    ["seed_task_trial_day_4", "Day 4: Schedule qualified meetings", "Continue outreach, review lead quality, schedule qualified meetings, document pricing questions, recommend positioning improvements, and submit a daily report.", 4],
+    ["seed_task_trial_day_5", "Day 5: Weekly summary and next priorities", "Complete follow-ups, submit weekly summary, report trial metrics, submit portal assessment, recommend Discovery Framework improvements, and propose next-week priorities.", 5]
+  ] as const;
+
+  for (const [id, title, description, day] of firstWeekTasks) {
+    await prisma.task.upsert({
+      where: { id },
+      update: { title, description },
+      create: {
+        id,
+        title,
+        description,
+        status: "Assigned",
+        priority: day === 1 ? "High" : "Medium",
+        ownerId: alex.id,
+        approverId: stephen.id,
+        createdById: stephen.id,
+        projectId: project.id,
+        dueDate: new Date(Date.now() + day * 24 * 60 * 60 * 1000)
+      }
+    });
+  }
 
   await prisma.approval.upsert({
     where: { id: "seed_approval_followup" },
@@ -282,6 +293,7 @@ async function main() {
   });
 
   await seedAcademy(prisma);
+  await seedPricing(prisma, stephen.id);
 }
 
 main()

@@ -5,7 +5,7 @@ import type { SessionUser } from "@/server/permissions/authorize";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TimeClockCard } from "@/components/portal/time-clock-card";
+import { TimeClockCard } from "@/components/portal/dashboard/time-clock-card";
 
 export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot: DashboardSnapshot }) {
   return (
@@ -27,7 +27,7 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
       </div>
 
       <div className="grid gap-5">
-        <TimeClockCard clock={snapshot.timeClock} />
+        {user.role === "Operations" ? <TimeClockCard clock={snapshot.timeClock} timezone={user.timezone} /> : null}
 
         <div className="grid gap-5 md:grid-cols-3">
           {snapshot.priorities.map((priority) => (

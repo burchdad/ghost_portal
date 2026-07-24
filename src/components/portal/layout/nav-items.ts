@@ -11,6 +11,8 @@ import {
   Megaphone,
   Send,
   MessageSquareText,
+  PackageOpen,
+  ReceiptText,
   Settings,
   Target,
   Users,
@@ -22,6 +24,8 @@ export const portalNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Ghost Academy", href: "/academy", icon: CheckSquare, permission: "academy:read" },
   { label: "My Tasks", href: "/tasks", icon: Clock3, permission: "tasks:read:assigned" },
+  { label: "Service Catalog", href: "/services", icon: PackageOpen, permission: "pricing:read" },
+  { label: "Pricing", href: "/pricing", icon: ReceiptText, permission: "pricing:read" },
   { label: "Clients", href: "/clients", icon: Users, permission: "clients:read:assigned" },
   { label: "Leads", href: "/leads", icon: Target, permission: "leads:read:assigned" },
   { label: "Projects", href: "/projects", icon: Workflow, permission: "projects:read:assigned" },
@@ -37,5 +41,6 @@ export const portalNavItems = [
   { label: "Support Agent", href: "/support", icon: LifeBuoy, permission: "support:create" },
   { label: "Mission Control Support", href: "/admin/support", icon: MessageSquareText, permission: "support:triage" },
   { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Pricing Workshop", href: "/admin/pricing-workshop", icon: PackageOpen, permission: "pricing:manage" },
   { label: "Admin", href: "/admin/users", icon: MessageSquareText, permission: "admin:access" }
 ] satisfies Array<{ label: string; href: string; icon: typeof LayoutDashboard; permission?: Permission }>;

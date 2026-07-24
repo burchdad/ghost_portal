@@ -461,6 +461,22 @@ Avoid guessing, silent confusion, unapproved client commitments, vague updates, 
 }
 
 function buildPolicyBody(title: string) {
+  const confidentialityEscalationSection = title === "Confidentiality Policy"
+    ? `
+## Common Situations That Require Escalation
+- Security or privacy concerns
+- Client complaints or dissatisfaction
+- Requests for pricing exceptions or discounts
+- Requests to change project scope or deadlines
+- Technical issues affecting clients
+- Bugs or permission issues in Ghost Portal
+- Suspicious emails, files, or login activity
+- Media or public inquiries
+- Legal, financial, or contract questions
+- Any situation where you're unsure of the correct action
+`
+    : "";
+
   return `# ${title}
 
 These internal policies provide operational guidance and do not replace signed agreements or applicable law.
@@ -483,6 +499,7 @@ A safe action is documenting a client request and submitting it for approval. An
 
 ## Escalation
 Escalate immediately when information is sensitive, a client is upset, a deadline may be missed, a credential may be exposed, or authority is unclear.
+${confidentialityEscalationSection}
 
 ## Founder Review
 Founder review required before this policy is treated as final legal or contractual language.`;

@@ -37,6 +37,8 @@ Set placeholders in `.env`; never commit real secrets.
 - `OPERATIONS_SEED_PASSWORD`
 - `UPLOADTHING_TOKEN`
 - `OPENAI_API_KEY`
+- `MISSION_CONTROL_WEBHOOK_URL`
+- `MISSION_CONTROL_WEBHOOK_SECRET`
 
 Seed passwords are read only from environment variables. If `OPERATIONS_SEED_PASSWORD` is unset, Alex is seeded as `Invited`.
 

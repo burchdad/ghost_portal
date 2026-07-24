@@ -16,6 +16,26 @@ export async function submitKnowledgeCheckAction(formData: FormData) {
   const moduleId = z.string().min(1).parse(formData.get("moduleId"));
   const courseModule = await findVisibleModule(moduleId, user.role);
   if (!courseModule?.knowledgeCheck || courseModule.knowledgeCheck.id !== checkId) throw new Error("Forbidden: knowledge check");
+  const prisma = getPrisma();
+  const [attempts, availableUnlock] = await Promise.all([
+    prisma.knowledgeCheckAttempt.findMany({
+      where: { checkId, userId: user.id },
+      orderBy: { submittedAt: "desc" },
+      select: { id: true, status: true }
+    }),
+    prisma.knowledgeCheckAttemptUnlock.findFirst({
+      where: { checkId, userId: user.id, usedAt: null },
+      orderBy: { createdAt: "asc" }
+    })
+  ]);
+  const hasPassed = attempts.some((attempt) => attempt.status === "Passed");
+  const failedAttempts = attempts.filter((attempt) => attempt.status === "Failed" || attempt.status === "NeedsReview");
+  const usingManagerUnlock = failedAttempts.length >= 2 && Boolean(availableUnlock);
+
+  if (hasPassed) throw new Error("This knowledge check has already been passed.");
+  if (failedAttempts.length >= 2 && !availableUnlock) {
+    throw new Error("This knowledge check needs manager review before another attempt.");
+  }
 
   let correct = 0;
   let scorable = 0;
@@ -35,19 +55,34 @@ export async function submitKnowledgeCheckAction(formData: FormData) {
   }
 
   const score = scorable === 0 ? 0 : Math.round((correct / scorable) * 100);
-  const status = requiresFounderReview ? "FounderReview" : score >= courseModule.knowledgeCheck.passingScore ? "Passed" : "Failed";
+  const status = requiresFounderReview
+    ? "FounderReview"
+    : score >= courseModule.knowledgeCheck.passingScore
+      ? "Passed"
+      : failedAttempts.length >= 1
+        ? "NeedsReview"
+        : "Failed";
 
-  await getPrisma().knowledgeCheckAttempt.create({
-    data: {
-      checkId,
-      userId: user.id,
-      answers,
-      score,
-      status
+  await prisma.$transaction(async (tx) => {
+    await tx.knowledgeCheckAttempt.create({
+      data: {
+        checkId,
+        userId: user.id,
+        answers,
+        score,
+        status
+      }
+    });
+
+    if (usingManagerUnlock && availableUnlock) {
+      await tx.knowledgeCheckAttemptUnlock.update({
+        where: { id: availableUnlock.id },
+        data: { usedAt: new Date() }
+      });
     }
   });
 
-  await getPrisma().academyActivity.create({
+  await prisma.academyActivity.create({
     data: {
       userId: user.id,
       action: "submitted knowledge check",
@@ -215,6 +250,7 @@ export async function updateAcademyModuleAction(formData: FormData) {
     title: z.string().min(3),
     summary: z.string().min(5),
     body: z.string().min(20),
+    primarySopId: z.string().optional(),
     published: z.boolean().default(false),
     founderReviewRequired: z.boolean().default(false),
     incrementVersion: z.boolean().default(false)
@@ -223,6 +259,7 @@ export async function updateAcademyModuleAction(formData: FormData) {
     title: formData.get("title"),
     summary: formData.get("summary"),
     body: formData.get("body"),
+    primarySopId: stringOrUndefined(formData.get("primarySopId")),
     published: formData.get("published") === "on",
     founderReviewRequired: formData.get("founderReviewRequired") === "on",
     incrementVersion: formData.get("incrementVersion") === "on"
@@ -238,6 +275,7 @@ export async function updateAcademyModuleAction(formData: FormData) {
       title: parsed.title,
       summary: parsed.summary,
       body: parsed.body,
+      primarySopId: parsed.primarySopId ?? null,
       published: parsed.published,
       founderReviewRequired: parsed.founderReviewRequired,
       version: nextVersion,
@@ -247,6 +285,89 @@ export async function updateAcademyModuleAction(formData: FormData) {
     }
   });
   revalidatePath("/admin/academy/content");
+  revalidatePath(`/academy/modules/${parsed.moduleId}`);
+}
+
+export async function updateKnowledgeQuestionMetadataAction(formData: FormData) {
+  const user = await requirePermission("academy:manage");
+  const parsed = z.object({
+    questionId: z.string().min(1),
+    moduleId: z.string().min(1),
+    sopId: z.string().optional(),
+    learningObjective: z.string().optional(),
+    incorrectExplanation: z.string().optional(),
+    difficulty: z.enum(["Beginner", "Intermediate", "Advanced"]),
+    status: z.enum(["Draft", "Approved", "Retired"])
+  }).parse({
+    questionId: formData.get("questionId"),
+    moduleId: formData.get("moduleId"),
+    sopId: stringOrUndefined(formData.get("sopId")),
+    learningObjective: stringOrUndefined(formData.get("learningObjective")),
+    incorrectExplanation: stringOrUndefined(formData.get("incorrectExplanation")),
+    difficulty: formData.get("difficulty"),
+    status: formData.get("status")
+  });
+
+  await getPrisma().knowledgeCheckQuestion.update({
+    where: { id: parsed.questionId },
+    data: {
+      moduleId: parsed.moduleId,
+      sopId: parsed.sopId ?? null,
+      learningObjective: parsed.learningObjective,
+      incorrectExplanation: parsed.incorrectExplanation,
+      difficulty: parsed.difficulty,
+      status: parsed.status,
+      approvedById: parsed.status === "Approved" ? user.id : null
+    }
+  });
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "academy.question_metadata_updated",
+    entity: "KnowledgeCheckQuestion",
+    entityId: parsed.questionId,
+    after: parsed
+  });
+  revalidatePath("/admin/academy/content");
+  revalidatePath(`/academy/modules/${parsed.moduleId}`);
+}
+
+export async function unlockKnowledgeCheckAttemptAction(formData: FormData) {
+  const user = await requirePermission("academy:manage");
+  const parsed = z.object({
+    checkId: z.string().min(1),
+    learnerId: z.string().min(1),
+    moduleId: z.string().min(1),
+    reason: z.string().max(1000).optional()
+  }).parse({
+    checkId: formData.get("checkId"),
+    learnerId: formData.get("learnerId"),
+    moduleId: formData.get("moduleId"),
+    reason: stringOrUndefined(formData.get("reason"))
+  });
+
+  const existingUnlock = await getPrisma().knowledgeCheckAttemptUnlock.findFirst({
+    where: { checkId: parsed.checkId, userId: parsed.learnerId, usedAt: null }
+  });
+  if (existingUnlock) throw new Error("This learner already has an unused unlocked attempt.");
+
+  const unlock = await getPrisma().knowledgeCheckAttemptUnlock.create({
+    data: {
+      checkId: parsed.checkId,
+      userId: parsed.learnerId,
+      unlockedById: user.id,
+      reason: parsed.reason
+    }
+  });
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "academy.knowledge_check_unlocked",
+    entity: "KnowledgeCheckAttemptUnlock",
+    entityId: unlock.id,
+    after: parsed
+  });
+  revalidatePath("/admin/academy/progress");
   revalidatePath(`/academy/modules/${parsed.moduleId}`);
 }
 

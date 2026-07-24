@@ -3,7 +3,6 @@ import { getTrialSubjectForViewer } from "@/server/data/trial-subject";
 import { getPrisma } from "@/server/db/prisma";
 import { hasPermission } from "@/server/permissions/roles";
 import { formatTaskActivityTarget, formatTaskStatus } from "@/lib/task-status";
-import { getTimeClockSnapshot, type TimeClockSnapshot } from "@/server/data/time-clock";
 
 export type DashboardSnapshot = {
   greeting: string;
@@ -28,7 +27,14 @@ export type DashboardSnapshot = {
   activity: Array<{ actor: string; action: string; target: string; time: string }>;
   hoursThisWeek: string;
   novaSummary: string;
-  timeClock: TimeClockSnapshot;
+  timeClock: {
+    status: "ClockedOut" | "ClockedIn" | "OnBreak" | "AwaitingCorrection" | "Completed";
+    shiftId?: string;
+    startedAt?: string;
+    openBreakStartedAt?: string;
+    breakMinutes: number;
+    dailyReportStatus: string;
+  };
 };
 
 export async function getDashboardSnapshot(user: SessionUser): Promise<DashboardSnapshot> {
@@ -39,7 +45,7 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
   const isFounderView = user.role === "Founder";
   const canSeeAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
 
-  const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows, timeClock] = await Promise.all([
+  const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows, activeShift, todayReport] = await Promise.all([
     prisma.task.findMany({
       where: { ownerId: trialSubject.id, archivedAt: null },
       include: { owner: true },
@@ -107,7 +113,12 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
       orderBy: { createdAt: "desc" },
       take: 5
     }),
-    getTimeClockSnapshot(user)
+    prisma.workShift.findFirst({
+      where: { userId: trialSubject.id, status: { in: ["ClockedIn", "OnBreak", "AwaitingCorrection"] } },
+      include: { breaks: { where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1 } },
+      orderBy: { startedAt: "desc" }
+    }),
+    prisma.dailyReport.findFirst({ where: { userId: trialSubject.id }, orderBy: { reportDate: "desc" }, select: { status: true, reportDate: true } })
   ]);
 
   const onboardingPercent = modules === 0 ? 0 : Math.round((completions / modules) * 100);
@@ -168,7 +179,14 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
     })),
     hoursThisWeek,
     novaSummary: await buildNovaSummary(user),
-    timeClock
+    timeClock: {
+      status: activeShift ? activeShift.status : "ClockedOut",
+      shiftId: activeShift?.id,
+      startedAt: activeShift?.startedAt.toISOString(),
+      openBreakStartedAt: activeShift?.breaks[0]?.startedAt.toISOString(),
+      breakMinutes: activeShift?.breakMinutes ?? 0,
+      dailyReportStatus: todayReport ? todayReport.status : "Not started"
+    }
   };
 }
 

@@ -31,7 +31,10 @@ const prismaMock = {
   },
   dailyReport: {
     findMany: vi.fn(),
-    findUnique: vi.fn()
+    findFirst: vi.fn()
+  },
+  workShift: {
+    findFirst: vi.fn()
   },
   activity: {
     findMany: vi.fn()
@@ -105,7 +108,8 @@ describe("dashboard snapshot", () => {
     prismaMock.onboardingModule.count.mockResolvedValue(4);
     prismaMock.onboardingCompletion.count.mockResolvedValue(2);
     prismaMock.dailyReport.findMany.mockResolvedValue([{ hoursWorked: 4 }]);
-    prismaMock.dailyReport.findUnique.mockResolvedValue(null);
+    prismaMock.dailyReport.findFirst.mockResolvedValue({ status: "Draft", reportDate: new Date("2026-07-21T00:00:00.000Z") });
+    prismaMock.workShift.findFirst.mockResolvedValue(null);
     prismaMock.activity.findMany.mockResolvedValue([
       {
         actor: { preferredName: "Stephen", name: "Stephen Burch" },
@@ -126,6 +130,8 @@ describe("dashboard snapshot", () => {
     expect(snapshot.tasks[0]?.state).toBe("Not Started");
     expect(snapshot.approvals[0]?.deadline).toContain("2026");
     expect(snapshot.activity[0]?.time).toContain("2026");
+    expect(snapshot.timeClock.status).toBe("ClockedOut");
+    expect(snapshot.timeClock.dailyReportStatus).toBe("Draft");
   });
 
   it("keeps Operations dashboard wording learner-scoped", async () => {
@@ -155,5 +161,28 @@ describe("dashboard snapshot", () => {
     expect(prismaMock.dailyReport.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ userId: "user_alex" })
     }));
+    expect(prismaMock.workShift.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "user_alex" })
+    }));
+  });
+
+  it("hydrates Operations time clock from the active server shift", async () => {
+    prismaMock.workShift.findFirst.mockResolvedValue({
+      id: "shift_1",
+      status: "OnBreak",
+      startedAt: new Date("2026-07-21T14:00:00.000Z"),
+      breakMinutes: 15,
+      breaks: [{ startedAt: new Date("2026-07-21T17:00:00.000Z") }]
+    });
+
+    const snapshot = await getDashboardSnapshot(user);
+
+    expect(snapshot.timeClock).toMatchObject({
+      status: "OnBreak",
+      shiftId: "shift_1",
+      startedAt: "2026-07-21T14:00:00.000Z",
+      openBreakStartedAt: "2026-07-21T17:00:00.000Z",
+      breakMinutes: 15
+    });
   });
 });

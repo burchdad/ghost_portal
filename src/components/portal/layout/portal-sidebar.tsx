@@ -9,7 +9,10 @@ import { hasPermission, type AuthzUser } from "@/server/permissions/roles";
 
 export function PortalSidebar({ user }: { user: AuthzUser }) {
   const pathname = usePathname();
-  const visibleItems = portalNavItems.filter((item) => !item.permission || hasPermission(user, item.permission));
+  const visibleItems = portalNavItems
+    .filter((item) => !item.permission || hasPermission(user, item.permission))
+    .filter((item) => user.role !== "Operations" || operationsTrialNav.includes(item.label))
+    .map((item) => user.role === "Operations" && item.label === "Settings" ? { ...item, label: "Profile" } : item);
 
   return (
     <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-white/10 bg-black/20 px-4 py-5 backdrop-blur-xl lg:block">
@@ -46,3 +49,20 @@ export function PortalSidebar({ user }: { user: AuthzUser }) {
     </aside>
   );
 }
+
+const operationsTrialNav = [
+  "Dashboard",
+  "Ghost Academy",
+  "My Tasks",
+  "Service Catalog",
+  "Pricing",
+  "Leads",
+  "Calendar",
+  "SOP Library",
+  "Daily Reports",
+  "Draft Communications",
+  "Waiting on Stephen",
+  "Notifications",
+  "Mission Feedback",
+  "Settings"
+];
