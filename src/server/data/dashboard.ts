@@ -28,7 +28,9 @@ export type DashboardSnapshot = {
   hoursThisWeek: string;
   novaSummary: string;
   timeClock: {
+    subjectName: string;
     status: "ClockedOut" | "ClockedIn" | "OnBreak" | "AwaitingCorrection" | "Completed";
+    canUseControls: boolean;
     shiftId?: string;
     startedAt?: string;
     openBreakStartedAt?: string;
@@ -180,7 +182,9 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
     hoursThisWeek,
     novaSummary: await buildNovaSummary(user),
     timeClock: {
+      subjectName,
       status: activeShift ? activeShift.status : "ClockedOut",
+      canUseControls: user.id === trialSubject.id && hasPermission(user, "reports:submit"),
       shiftId: activeShift?.id,
       startedAt: activeShift?.startedAt.toISOString(),
       openBreakStartedAt: activeShift?.breaks[0]?.startedAt.toISOString(),

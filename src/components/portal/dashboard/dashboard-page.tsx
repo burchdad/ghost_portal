@@ -10,7 +10,7 @@ import { TimeClockCard } from "@/components/portal/dashboard/time-clock-card";
 export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot: DashboardSnapshot }) {
   return (
     <section className="px-5 py-7 lg:px-8">
-      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-7 grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
         <div>
           <Badge className="mb-3">Operations Portal</Badge>
           <h2 className="text-4xl font-semibold tracking-normal">
@@ -20,15 +20,16 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
             Your permission-scoped command center for priorities, onboarding, tasks, approvals, and end-of-day reporting.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-white/52">
-          <Clock3 className="size-4" />
-          <span>{user.timezone}</span>
+        <div className="grid gap-3">
+          <TimeClockCard clock={snapshot.timeClock} timezone={user.timezone} />
+          <div className="flex items-center justify-end gap-2 text-sm text-white/52">
+            <Clock3 className="size-4" />
+            <span>{user.timezone}</span>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-5">
-        {user.role === "Operations" ? <TimeClockCard clock={snapshot.timeClock} timezone={user.timezone} /> : null}
-
         <div className="grid gap-5 md:grid-cols-3">
           {snapshot.priorities.map((priority) => (
             <Card key={priority.label}>
