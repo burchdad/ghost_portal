@@ -27,10 +27,15 @@ if (migrationStatusOutput.includes(academyMigration) && /failed/i.test(migration
   });
 }
 
-for (const args of [
-  ["prisma", "migrate", "deploy"],
-  ["prisma", "db", "seed"]
-]) {
+const commands = [["prisma", "migrate", "deploy"]];
+
+if (process.env.RUN_DATABASE_SEED === "1") {
+  commands.push(["prisma", "db", "seed"]);
+} else {
+  console.log("Skipping database seed because RUN_DATABASE_SEED is not set to 1.");
+}
+
+for (const args of commands) {
   const result = spawnSync("pnpm", ["exec", ...args], {
     stdio: "inherit",
     shell: process.platform === "win32"
