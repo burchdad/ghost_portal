@@ -21,7 +21,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const baseWhere: Prisma.LeadWhereInput = user.role === "Founder"
     ? { archivedAt: null }
     : { archivedAt: null, access: { some: { userId: user.id } } };
-  const [leads, users] = await Promise.all([
+  const [leads, metricLeads, users] = await Promise.all([
     getPrisma().lead.findMany({
       where: { ...baseWhere, ...whereForFilter(filter) },
       include: {
@@ -31,9 +31,16 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       orderBy: [{ followUpDate: "asc" }, { updatedAt: "desc" }],
       take: 100
     }),
+    getPrisma().lead.findMany({
+      where: baseWhere,
+      include: {
+        callActivities: { select: { outcome: true } }
+      },
+      take: 500
+    }),
     getPrisma().user.findMany({ where: { status: "Active", role: { name: { in: ["Founder", "Operations", "Sales"] } } }, include: { role: true }, orderBy: { name: "asc" } })
   ]);
-  const sourceMetrics = buildSourceMetrics(leads);
+  const sourceMetrics = buildSourceMetrics(metricLeads);
 
   return (
     <PageSection eyebrow="Cold-call workspace" title="Leads" description="Create raw leads fast, log outreach, enrich progressively, and hand off only when the lead is ready.">

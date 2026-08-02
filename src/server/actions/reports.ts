@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
-import { todayInTimezone } from "@/lib/timezone";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
@@ -109,13 +109,14 @@ export async function submitDailyReport(input: unknown) {
     })
   ]);
 
+  revalidateReportPaths(saved.id);
   return saved;
 }
 
 export async function submitDailyReportAction(formData: FormData) {
   "use server";
 
-  await submitDailyReport({
+  const saved = await submitDailyReport({
     reportDate: formData.get("reportDate"),
     shiftStart: formData.get("shiftStart"),
     shiftEnd: formData.get("shiftEnd"),
@@ -131,127 +132,8 @@ export async function submitDailyReportAction(formData: FormData) {
     tomorrowPriorities: formData.get("tomorrowPriorities"),
     submit: formData.get("submit") === "true"
   });
-}
 
-export async function clockInAction() {
-  "use server";
-
-  const user = await requireUser();
-  if (!hasPermission(user, "reports:submit")) {
-    throw new Error("Forbidden: reports:submit");
-  }
-
-  const now = new Date();
-  const reportDate = workDateForTimezone(user.timezone);
-  const existing = await getPrisma().dailyReport.findUnique({
-    where: {
-      userId_reportDate: {
-        userId: user.id,
-        reportDate
-      }
-    }
-  });
-
-  if (existing && existing.status !== "Draft") {
-    throw new Error("A submitted report cannot be changed by clocking in.");
-  }
-  if (existing?.shiftStart && !existing.shiftEnd) {
-    return;
-  }
-  if (existing?.shiftEnd) {
-    throw new Error("You already clocked out for this work date.");
-  }
-
-  const saved = await getPrisma().dailyReport.upsert({
-    where: {
-      userId_reportDate: {
-        userId: user.id,
-        reportDate
-      }
-    },
-    update: {
-      shiftStart: now,
-      shiftEnd: null,
-      hoursWorked: new Prisma.Decimal(0)
-    },
-    create: {
-      userId: user.id,
-      reportDate,
-      shiftStart: now,
-      breakMinutes: 0,
-      hoursWorked: new Prisma.Decimal(0),
-      completed: "Clocked in. End-of-day report pending.",
-      inProgress: "Work session in progress.",
-      tomorrowPriorities: "End-of-day report pending.",
-      status: "Draft"
-    }
-  });
-
-  await Promise.all([
-    recordActivity({ actorId: user.id, action: "clocked in", target: saved.reportDate.toISOString().slice(0, 10) }),
-    writeAuditLog({
-      userId: user.id,
-      action: "time_clock.clocked_in",
-      entity: "DailyReport",
-      entityId: saved.id,
-      after: { reportDate: saved.reportDate.toISOString(), shiftStart: saved.shiftStart?.toISOString() }
-    })
-  ]);
-
-  revalidateTimeClockPaths();
-}
-
-export async function clockOutAction() {
-  "use server";
-
-  const user = await requireUser();
-  if (!hasPermission(user, "reports:submit")) {
-    throw new Error("Forbidden: reports:submit");
-  }
-
-  const now = new Date();
-  const reportDate = workDateForTimezone(user.timezone);
-  const existing = await getPrisma().dailyReport.findUnique({
-    where: {
-      userId_reportDate: {
-        userId: user.id,
-        reportDate
-      }
-    }
-  });
-
-  if (!existing?.shiftStart) {
-    throw new Error("Clock in before clocking out.");
-  }
-  if (existing.status !== "Draft") {
-    throw new Error("A submitted report cannot be changed by clocking out.");
-  }
-  if (existing.shiftEnd) {
-    return;
-  }
-
-  const hoursWorked = calculateHours(existing.shiftStart, now, existing.breakMinutes);
-  const saved = await getPrisma().dailyReport.update({
-    where: { id: existing.id },
-    data: {
-      shiftEnd: now,
-      hoursWorked: new Prisma.Decimal(hoursWorked)
-    }
-  });
-
-  await Promise.all([
-    recordActivity({ actorId: user.id, action: "clocked out", target: `${saved.reportDate.toISOString().slice(0, 10)}: ${hoursWorked.toFixed(2)} hours` }),
-    writeAuditLog({
-      userId: user.id,
-      action: "time_clock.clocked_out",
-      entity: "DailyReport",
-      entityId: saved.id,
-      before: { shiftEnd: null },
-      after: { shiftEnd: saved.shiftEnd?.toISOString(), hoursWorked: hoursWorked.toFixed(2) }
-    })
-  ]);
-
-  revalidateTimeClockPaths();
+  redirect(`/daily-reports/${saved.id}`);
 }
 
 export async function reviewDailyReportAction(formData: FormData) {
@@ -296,6 +178,7 @@ export async function reviewDailyReportAction(formData: FormData) {
     })
   ]);
 
+  revalidateReportPaths(report.id);
 }
 
 function calculateHours(start: Date | undefined, end: Date | undefined, breakMinutes: number) {
@@ -311,14 +194,9 @@ function startOfUtcDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-function workDateForTimezone(timezone: string) {
-  const [year, month, day] = todayInTimezone(timezone).split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-function revalidateTimeClockPaths() {
-  revalidatePath("/dashboard");
+function revalidateReportPaths(reportId?: string) {
   revalidatePath("/calendar");
   revalidatePath("/daily-reports");
   revalidatePath("/daily-reports/new");
+  if (reportId) revalidatePath(`/daily-reports/${reportId}`);
 }

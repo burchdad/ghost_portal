@@ -1,27 +1,32 @@
 import Link from "next/link";
 import { PageSection } from "@/components/portal/page-section";
 import { SimpleTable } from "@/components/portal/simple-table";
-import { TimeClockCard } from "@/components/portal/time-clock-card";
+import { Badge } from "@/components/ui/badge";
+import { formatDuration } from "@/lib/time-clock";
 import { getPrisma } from "@/server/db/prisma";
-import { getTimeClockSnapshot } from "@/server/data/time-clock";
 import { requireUser } from "@/server/permissions/authorize";
 
 export default async function CalendarPage() {
   const user = await requireUser();
-  const [clock, reports] = await Promise.all([
-    getTimeClockSnapshot(user),
-    getPrisma().dailyReport.findMany({
+  const prisma = getPrisma();
+  const [reports, shifts] = await Promise.all([
+    prisma.dailyReport.findMany({
       where: user.role === "Founder" ? {} : { userId: user.id },
       include: { user: true },
       orderBy: { reportDate: "desc" },
+      take: 10
+    }),
+    prisma.workShift.findMany({
+      where: user.role === "Founder" ? {} : { userId: user.id },
+      include: { user: true },
+      orderBy: { startedAt: "desc" },
       take: 10
     })
   ]);
 
   return (
-    <PageSection eyebrow="Schedule" title="Calendar" description="Track daily clock-in, clock-out, report dates, and submitted hours with the correct timezone.">
+    <PageSection eyebrow="Schedule" title="Calendar" description="Review work sessions, report dates, and submitted hours with the correct timezone. Time tracking now happens from the dashboard.">
       <div className="grid gap-5">
-        <TimeClockCard clock={clock} />
         <SimpleTable
           columns={["Work date", "User", "Start", "End", "Hours", "Status"]}
           empty="No work dates recorded yet."
@@ -36,6 +41,18 @@ export default async function CalendarPage() {
             report.status
           ])}
         />
+        <SimpleTable
+          columns={["Clocked in", "User", "Status", "Clocked out", "Worked", "Break"]}
+          empty="No dashboard clock sessions recorded yet."
+          rows={shifts.map((shift) => [
+            formatTime(shift.startedAt, shift.user.timezone),
+            shift.user.preferredName ?? shift.user.name,
+            <Badge key="status">{formatShiftStatus(shift.status)}</Badge>,
+            shift.endedAt ? formatTime(shift.endedAt, shift.user.timezone) : "Open",
+            formatDuration(shift.netMinutes ?? calculateActiveMinutes(shift.startedAt, shift.breakMinutes)),
+            formatDuration(shift.breakMinutes)
+          ])}
+        />
       </div>
     </PageSection>
   );
@@ -48,4 +65,16 @@ function formatTime(date: Date | null, timezone: string) {
     minute: "2-digit",
     timeZone: timezone
   }).format(date);
+}
+
+function formatShiftStatus(status: string) {
+  if (status === "ClockedIn") return "Clocked in";
+  if (status === "OnBreak") return "On break";
+  if (status === "AwaitingCorrection") return "Needs correction";
+  if (status === "Completed") return "Clocked out";
+  return status;
+}
+
+function calculateActiveMinutes(startedAt: Date, breakMinutes: number) {
+  return Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 60000) - breakMinutes);
 }

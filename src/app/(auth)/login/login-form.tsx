@@ -15,7 +15,7 @@ export function LoginForm({ redirectTo, reason }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <main className="grid min-h-screen grid-cols-[1.05fr_0.95fr]">
+    <main className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
       <section className="flex items-center justify-center px-8">
         <form action={action} className="glass w-full max-w-md rounded-lg p-8">
           <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -35,7 +35,7 @@ export function LoginForm({ redirectTo, reason }: LoginFormProps) {
           <label className="mt-5 block text-sm font-medium" htmlFor="password">Password</label>
           <div className="mt-2 flex h-11 items-center rounded-lg border border-white/10 bg-black/24 focus-within:border-accent">
             <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required className="h-full min-w-0 flex-1 bg-transparent px-3 text-sm outline-none" />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} className="flex size-10 items-center justify-center text-white/52" aria-label={showPassword ? "Hide password" : "Show password"}>
+            <button type="button" onClick={() => setShowPassword((value) => !value)} className="flex size-10 items-center justify-center text-white/52" aria-label={showPassword ? "Hide secret text" : "Show secret text"}>
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>

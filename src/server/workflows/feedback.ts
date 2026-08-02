@@ -22,7 +22,17 @@ const feedbackSchema = z.object({
   severity: z.enum(["Low", "Medium", "High", "Urgent"]).default("Medium")
 });
 
+export type SupportTicketState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+  ticketId?: string;
+};
+
 export async function submitFeedbackAction(formData: FormData) {
+  await submitFeedback(formData);
+}
+
+async function submitFeedback(formData: FormData) {
   const user = await requireUser();
   if (!hasPermission(user, "support:create") && !hasPermission(user, "feedback:create")) throw new Error("Forbidden: support:create");
 
@@ -64,6 +74,24 @@ export async function submitFeedbackAction(formData: FormData) {
   revalidatePath("/support");
   revalidatePath("/admin/support");
   revalidatePath("/feedback");
+  return feedback;
+}
+
+export async function submitSupportTicketFormAction(_state: SupportTicketState, formData: FormData): Promise<SupportTicketState> {
+  void _state;
+  try {
+    const feedback = await submitFeedback(formData);
+    return {
+      status: "success",
+      message: `${feedback.supportKey ?? "Support ticket"} was submitted to Stephen.`,
+      ticketId: feedback.id
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: readableFeedbackError(error)
+    };
+  }
 }
 
 export async function updateFeedbackStatusAction(formData: FormData) {
@@ -131,4 +159,10 @@ function stringOrUndefined(value: FormDataEntryValue | null) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function readableFeedbackError(error: unknown) {
+  if (error instanceof z.ZodError) return "Check the required fields and try submitting the ticket again.";
+  if (error instanceof Error && error.message) return error.message;
+  return "Support ticket was not submitted. Please try again or tell Stephen.";
 }
