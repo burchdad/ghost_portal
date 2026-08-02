@@ -61,6 +61,7 @@ describe("Mission Control client", () => {
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
     expect(body).toMatchObject({
       event: "ghost_portal.lead_handoff",
+      source: "client_admin_dashboard",
       requestType: "lead_handoff",
       request_type: "lead_handoff",
       summary: "Lead handoff: Acme Plumbing",
@@ -68,7 +69,8 @@ describe("Mission Control client", () => {
       leadId: "lead_1",
       businessName: "Acme Plumbing",
       payload: expect.objectContaining({ leadId: "lead_1", businessName: "Acme Plumbing" }),
-      lead: expect.objectContaining({ leadId: "lead_1", businessName: "Acme Plumbing" })
+      lead: expect.objectContaining({ leadId: "lead_1", businessName: "Acme Plumbing" }),
+      metadata: expect.objectContaining({ source: "ghost_ops_portal" })
     });
     expect(body.details).toContain("Possible website need.");
     expect(body.message).toBe(body.details);

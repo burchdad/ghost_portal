@@ -85,7 +85,7 @@ function buildWebhookBody(payload: MissionControlLeadPayload) {
 
   return {
     event: "ghost_portal.lead_handoff",
-    source: "ghost_ops_portal",
+    source: "client_admin_dashboard",
     requestType: "lead_handoff",
     request_type: "lead_handoff",
     priority: payload.interestLevel === "StrongInterest" || payload.interestLevel === "MeetingRequested" ? "High" : "Medium",
@@ -103,6 +103,7 @@ function buildWebhookBody(payload: MissionControlLeadPayload) {
     lead: payload,
     metadata: {
       sourceSystem: payload.sourceSystem,
+      source: "ghost_ops_portal",
       leadId: payload.leadId,
       missionControlStage: payload.missionControlStage,
       recommendedOffer: payload.recommendedOffer,
