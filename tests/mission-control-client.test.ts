@@ -51,7 +51,11 @@ describe("Mission Control client", () => {
 
     expect(result).toEqual({ status: "sent", externalId: "mc_alias_1", response: { id: "mc_alias_1" } });
     expect(fetchMock).toHaveBeenCalledWith("https://mission.example.test/handoff", expect.objectContaining({
-      headers: expect.objectContaining({ authorization: "Bearer secret-token" })
+      headers: expect.objectContaining({
+        authorization: "Bearer secret-token",
+        "x-ghost-webhook-secret": "secret-token",
+        "x-webhook-secret": "secret-token"
+      })
     }));
   });
 });

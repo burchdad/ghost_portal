@@ -45,7 +45,13 @@ export async function syncLeadHandoffToMissionControl(payload: MissionControlLea
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(webhookSecret ? { authorization: `Bearer ${webhookSecret}` } : {})
+        ...(webhookSecret
+          ? {
+              authorization: `Bearer ${webhookSecret}`,
+              "x-ghost-webhook-secret": webhookSecret,
+              "x-webhook-secret": webhookSecret
+            }
+          : {})
       },
       body: JSON.stringify({
         event: "ghost_portal.lead_handoff",
