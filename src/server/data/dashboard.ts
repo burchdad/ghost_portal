@@ -4,6 +4,17 @@ import { getPrisma } from "@/server/db/prisma";
 import { hasPermission } from "@/server/permissions/roles";
 import { formatTaskActivityTarget, formatTaskStatus } from "@/lib/task-status";
 
+type TimeClockSnapshot = {
+  subjectName: string;
+  status: "ClockedOut" | "ClockedIn" | "OnBreak" | "AwaitingCorrection" | "Completed";
+  canUseControls: boolean;
+  shiftId?: string;
+  startedAt?: string;
+  openBreakStartedAt?: string;
+  breakMinutes: number;
+  dailyReportStatus: string;
+};
+
 export type DashboardSnapshot = {
   greeting: string;
   scope: {
@@ -27,16 +38,8 @@ export type DashboardSnapshot = {
   activity: Array<{ actor: string; action: string; target: string; time: string }>;
   hoursThisWeek: string;
   novaSummary: string;
-  timeClock: {
-    subjectName: string;
-    status: "ClockedOut" | "ClockedIn" | "OnBreak" | "AwaitingCorrection" | "Completed";
-    canUseControls: boolean;
-    shiftId?: string;
-    startedAt?: string;
-    openBreakStartedAt?: string;
-    breakMinutes: number;
-    dailyReportStatus: string;
-  };
+  timeClock: TimeClockSnapshot;
+  currentUserTimeClock: TimeClockSnapshot;
 };
 
 export async function getDashboardSnapshot(user: SessionUser): Promise<DashboardSnapshot> {
@@ -122,9 +125,29 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
     }),
     prisma.dailyReport.findFirst({ where: { userId: trialSubject.id }, orderBy: { reportDate: "desc" }, select: { status: true, reportDate: true } })
   ]);
+  const currentUserActiveShift =
+    user.id === trialSubject.id
+      ? activeShift
+      : await prisma.workShift.findFirst({
+          where: { userId: user.id, status: { in: ["ClockedIn", "OnBreak", "AwaitingCorrection"] } },
+          include: { breaks: { where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1 } },
+          orderBy: { startedAt: "desc" }
+        });
 
   const onboardingPercent = modules === 0 ? 0 : Math.round((completions / modules) * 100);
   const hoursThisWeek = reports.reduce((total, report) => total + Number(report.hoursWorked), 0).toFixed(1);
+  const subjectTimeClock = buildTimeClockSnapshot({
+    subjectName,
+    shift: activeShift,
+    canUseControls: user.id === trialSubject.id && hasPermission(user, "reports:submit"),
+    dailyReportStatus: todayReport ? todayReport.status : "Not started"
+  });
+  const currentUserTimeClock = buildTimeClockSnapshot({
+    subjectName: user.preferredName ?? user.name,
+    shift: currentUserActiveShift,
+    canUseControls: hasPermission(user, "reports:submit"),
+    dailyReportStatus: user.id === trialSubject.id && todayReport ? todayReport.status : "Not started"
+  });
 
   return {
     greeting: greetingForTimezone(user.timezone),
@@ -181,16 +204,37 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
     })),
     hoursThisWeek,
     novaSummary: await buildNovaSummary(user),
-    timeClock: {
-      subjectName,
-      status: activeShift ? activeShift.status : "ClockedOut",
-      canUseControls: user.id === trialSubject.id && hasPermission(user, "reports:submit"),
-      shiftId: activeShift?.id,
-      startedAt: activeShift?.startedAt.toISOString(),
-      openBreakStartedAt: activeShift?.breaks[0]?.startedAt.toISOString(),
-      breakMinutes: activeShift?.breakMinutes ?? 0,
-      dailyReportStatus: todayReport ? todayReport.status : "Not started"
-    }
+    timeClock: subjectTimeClock,
+    currentUserTimeClock
+  };
+}
+
+function buildTimeClockSnapshot({
+  subjectName,
+  shift,
+  canUseControls,
+  dailyReportStatus
+}: {
+  subjectName: string;
+  shift: {
+    id: string;
+    status: TimeClockSnapshot["status"];
+    startedAt: Date;
+    breakMinutes: number;
+    breaks: Array<{ startedAt: Date }>;
+  } | null;
+  canUseControls: boolean;
+  dailyReportStatus: string;
+}): TimeClockSnapshot {
+  return {
+    subjectName,
+    status: shift ? shift.status : "ClockedOut",
+    canUseControls,
+    shiftId: shift?.id,
+    startedAt: shift?.startedAt.toISOString(),
+    openBreakStartedAt: shift?.breaks[0]?.startedAt.toISOString(),
+    breakMinutes: shift?.breakMinutes ?? 0,
+    dailyReportStatus
   };
 }
 

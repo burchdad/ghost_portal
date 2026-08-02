@@ -21,7 +21,8 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
           </p>
         </div>
         <div className="grid gap-3">
-          <TimeClockCard clock={snapshot.timeClock} timezone={user.timezone} />
+          <TimeClockCard clock={snapshot.currentUserTimeClock} timezone={user.timezone} />
+          {snapshot.currentUserTimeClock.subjectName !== snapshot.timeClock.subjectName ? <TimeClockCard clock={snapshot.timeClock} timezone={user.timezone} /> : null}
           <div className="flex items-center justify-end gap-2 text-sm text-white/52">
             <Clock3 className="size-4" />
             <span>{user.timezone}</span>

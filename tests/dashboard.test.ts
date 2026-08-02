@@ -154,6 +154,15 @@ describe("dashboard snapshot", () => {
     expect(snapshot.scope.progressAction).toBe("Review daily reports");
     expect(snapshot.scope.progressHref).toBe("/daily-reports");
     expect(snapshot.novaSummary).toContain("2 open support tickets");
+    expect(snapshot.currentUserTimeClock).toMatchObject({
+      subjectName: "Stephen",
+      status: "ClockedOut",
+      canUseControls: true
+    });
+    expect(snapshot.timeClock).toMatchObject({
+      subjectName: "Alex",
+      canUseControls: false
+    });
     expect(prismaMock.task.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { ownerId: "user_alex", archivedAt: null }
     }));
@@ -163,6 +172,9 @@ describe("dashboard snapshot", () => {
     }));
     expect(prismaMock.workShift.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ userId: "user_alex" })
+    }));
+    expect(prismaMock.workShift.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "user_stephen" })
     }));
   });
 
