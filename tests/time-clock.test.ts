@@ -20,6 +20,9 @@ const prismaMock = {
   auditLog: {
     create: vi.fn()
   },
+  activity: {
+    create: vi.fn()
+  },
   $transaction: vi.fn()
 };
 
@@ -80,6 +83,7 @@ describe("time clock workflow guards", () => {
     vi.clearAllMocks();
     prismaMock.$transaction.mockImplementation(async (operations: Array<Promise<unknown>>) => Promise.all(operations));
     prismaMock.auditLog.create.mockResolvedValue({ id: "audit_1" });
+    prismaMock.activity.create.mockResolvedValue({ id: "activity_1" });
   });
 
   it("blocks duplicate clock-in while an active shift exists", async () => {

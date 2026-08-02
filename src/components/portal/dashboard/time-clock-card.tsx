@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { Coffee, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { activeElapsedMinutes, formatDuration, minutesBetween } from "@/lib/time-clock";
 
-import { clockInAction, clockOutAction, endBreakAction, startBreakAction } from "@/server/workflows/time-clock";
+import {
+  clockInDashboardAction,
+  clockOutDashboardAction,
+  endBreakDashboardAction,
+  startBreakDashboardAction,
+  type TimeClockActionState
+} from "@/server/workflows/time-clock";
+
+const initialActionState: TimeClockActionState = { status: "idle" };
 
 export function TimeClockCard({
   clock,
@@ -25,6 +33,10 @@ export function TimeClockCard({
   timezone: string;
 }) {
   const [now, setNow] = useState(() => new Date());
+  const [clockInState, clockInFormAction, clockInPending] = useActionState(clockInDashboardAction, initialActionState);
+  const [clockOutState, clockOutFormAction, clockOutPending] = useActionState(clockOutDashboardAction, initialActionState);
+  const [startBreakState, startBreakFormAction, startBreakPending] = useActionState(startBreakDashboardAction, initialActionState);
+  const [endBreakState, endBreakFormAction, endBreakPending] = useActionState(endBreakDashboardAction, initialActionState);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30000);
@@ -37,6 +49,7 @@ export function TimeClockCard({
   const currentBreakMinutes = openBreakStartedAt ? minutesBetween(openBreakStartedAt, now) : 0;
   const isWorking = clock.status === "ClockedIn" || clock.status === "OnBreak";
   const isOnBreak = clock.status === "OnBreak";
+  const latestState = [clockInState, clockOutState, startBreakState, endBreakState].findLast((state) => state.status !== "idle") ?? initialActionState;
 
   return (
     <Card className="w-full max-w-sm p-4">
@@ -54,38 +67,44 @@ export function TimeClockCard({
       {clock.canUseControls ? (
         <div className="mt-4 grid gap-2">
           {isWorking ? (
-            <form action={clockOutAction}>
+            <form action={clockOutFormAction}>
               {isOnBreak ? <input type="hidden" name="allowOpenBreak" value="on" /> : null}
-              <Button className="h-12 w-full bg-danger text-white hover:bg-danger/90">
+              <Button className="h-12 w-full bg-danger text-white hover:bg-danger/90" disabled={clockOutPending}>
                 <LogOut className="size-4" />
-                Clock Out
+                {clockOutPending ? "Clocking out..." : "Clock Out"}
               </Button>
             </form>
           ) : (
-            <form action={clockInAction}>
-              <Button className="h-12 w-full" variant="accent">
+            <form action={clockInFormAction}>
+              <Button className="h-12 w-full" variant="accent" disabled={clockInPending}>
                 <LogIn className="size-4" />
-                Sign In
+                {clockInPending ? "Signing in..." : "Sign In"}
               </Button>
             </form>
           )}
 
           {isWorking ? (
             isOnBreak ? (
-              <form action={endBreakAction}>
-                <Button className="h-10 w-full border-danger/40 bg-danger/10 text-danger hover:bg-danger/20" variant="outline">
+              <form action={endBreakFormAction}>
+                <Button className="h-10 w-full border-danger/40 bg-danger/10 text-danger hover:bg-danger/20" variant="outline" disabled={endBreakPending}>
                   <Coffee className="size-4" />
-                  Come Back From Break
+                  {endBreakPending ? "Ending break..." : "Come Back From Break"}
                 </Button>
               </form>
             ) : (
-              <form action={startBreakAction}>
-                <Button className="h-10 w-full border-accent/40 bg-accent/10 text-accent hover:bg-accent/20" variant="outline">
+              <form action={startBreakFormAction}>
+                <Button className="h-10 w-full border-accent/40 bg-accent/10 text-accent hover:bg-accent/20" variant="outline" disabled={startBreakPending}>
                   <Coffee className="size-4" />
-                  Take a Break
+                  {startBreakPending ? "Starting break..." : "Take a Break"}
                 </Button>
               </form>
             )
+          ) : null}
+
+          {latestState.message ? (
+            <p className={`rounded-lg border px-3 py-2 text-xs ${latestState.status === "error" ? "border-danger/30 bg-danger/10 text-danger" : "border-accent/30 bg-accent/10 text-accent"}`}>
+              {latestState.message}
+            </p>
           ) : null}
         </div>
       ) : (

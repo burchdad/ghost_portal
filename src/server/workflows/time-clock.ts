@@ -6,6 +6,12 @@ import { calculateShiftMinutes, minutesBetween } from "@/lib/time-clock";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { requirePermission, requireUser } from "@/server/permissions/authorize";
+import { recordActivity } from "@/server/workflows/activity";
+
+export type TimeClockActionState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+};
 
 export async function clockInAction() {
   const user = await requireUser();
@@ -14,8 +20,11 @@ export async function clockInAction() {
   if (openShift) throw new Error("You already have an open shift.");
 
   const shift = await prisma.workShift.create({ data: { userId: user.id, startedAt: new Date(), status: "ClockedIn" } });
-  await writeAuditLog({ userId: user.id, action: "time.clock_in", entity: "WorkShift", entityId: shift.id, after: { startedAt: shift.startedAt } });
-  revalidatePath("/dashboard");
+  await Promise.all([
+    writeAuditLog({ userId: user.id, action: "time.clock_in", entity: "WorkShift", entityId: shift.id, after: { startedAt: shift.startedAt } }),
+    recordActivity({ actorId: user.id, action: "clocked in", target: `Work shift started ${shift.startedAt.toISOString()}` })
+  ]);
+  revalidateTimeClockPaths();
 }
 
 export async function startBreakAction() {
@@ -27,8 +36,11 @@ export async function startBreakAction() {
 
   const workBreak = await prisma.workBreak.create({ data: { shiftId: shift.id, startedAt: new Date() } });
   await prisma.workShift.update({ where: { id: shift.id }, data: { status: "OnBreak" } });
-  await writeAuditLog({ userId: user.id, action: "time.break_started", entity: "WorkBreak", entityId: workBreak.id, after: { shiftId: shift.id } });
-  revalidatePath("/dashboard");
+  await Promise.all([
+    writeAuditLog({ userId: user.id, action: "time.break_started", entity: "WorkBreak", entityId: workBreak.id, after: { shiftId: shift.id } }),
+    recordActivity({ actorId: user.id, action: "started break", target: `Work shift ${shift.id}` })
+  ]);
+  revalidateTimeClockPaths();
 }
 
 export async function endBreakAction() {
@@ -44,8 +56,11 @@ export async function endBreakAction() {
     prisma.workBreak.update({ where: { id: openBreak.id }, data: { endedAt, durationMinutes } }),
     prisma.workShift.update({ where: { id: shift.id }, data: { status: "ClockedIn", breakMinutes: { increment: durationMinutes } } })
   ]);
-  await writeAuditLog({ userId: user.id, action: "time.break_ended", entity: "WorkBreak", entityId: openBreak.id, after: { durationMinutes } });
-  revalidatePath("/dashboard");
+  await Promise.all([
+    writeAuditLog({ userId: user.id, action: "time.break_ended", entity: "WorkBreak", entityId: openBreak.id, after: { durationMinutes } }),
+    recordActivity({ actorId: user.id, action: "ended break", target: `${durationMinutes} minutes` })
+  ]);
+  revalidateTimeClockPaths();
 }
 
 export async function clockOutAction(formData: FormData) {
@@ -66,8 +81,53 @@ export async function clockOutAction(formData: FormData) {
   }
   const totals = calculateShiftMinutes({ startedAt: shift.startedAt, endedAt, breakMinutes });
   await prisma.workShift.update({ where: { id: shift.id }, data: { endedAt, ...totals, status: "Completed" } });
-  await writeAuditLog({ userId: user.id, action: "time.clock_out", entity: "WorkShift", entityId: shift.id, after: totals });
-  revalidatePath("/dashboard");
+  await Promise.all([
+    writeAuditLog({ userId: user.id, action: "time.clock_out", entity: "WorkShift", entityId: shift.id, after: totals }),
+    recordActivity({ actorId: user.id, action: "clocked out", target: `${Math.round(totals.netMinutes / 60 * 100) / 100} hours worked` })
+  ]);
+  revalidateTimeClockPaths();
+}
+
+export async function clockInDashboardAction(_state: TimeClockActionState, _formData: FormData): Promise<TimeClockActionState> {
+  void _state;
+  void _formData;
+  try {
+    await clockInAction();
+    return { status: "success", message: "Signed in. Time tracking has started." };
+  } catch (error) {
+    return { status: "error", message: readableTimeClockError(error, "Could not sign in. Please try again or tell Stephen.") };
+  }
+}
+
+export async function startBreakDashboardAction(_state: TimeClockActionState, _formData: FormData): Promise<TimeClockActionState> {
+  void _state;
+  void _formData;
+  try {
+    await startBreakAction();
+    return { status: "success", message: "Break started." };
+  } catch (error) {
+    return { status: "error", message: readableTimeClockError(error, "Could not start break. Please try again or tell Stephen.") };
+  }
+}
+
+export async function endBreakDashboardAction(_state: TimeClockActionState, _formData: FormData): Promise<TimeClockActionState> {
+  void _state;
+  void _formData;
+  try {
+    await endBreakAction();
+    return { status: "success", message: "Break ended. You are back on the clock." };
+  } catch (error) {
+    return { status: "error", message: readableTimeClockError(error, "Could not end break. Please try again or tell Stephen.") };
+  }
+}
+
+export async function clockOutDashboardAction(_state: TimeClockActionState, formData: FormData): Promise<TimeClockActionState> {
+  try {
+    await clockOutAction(formData);
+    return { status: "success", message: "Clocked out. Hours worked were recorded." };
+  } catch (error) {
+    return { status: "error", message: readableTimeClockError(error, "Could not clock out. Please try again or tell Stephen.") };
+  }
 }
 
 export async function requestTimeCorrectionAction(formData: FormData) {
@@ -108,4 +168,14 @@ export async function reviewTimeCorrectionAction(formData: FormData) {
   const request = await getPrisma().timeCorrectionRequest.update({ where: { id: parsed.correctionId }, data: { status: parsed.status, founderComment: parsed.founderComment, reviewedById: user.id, reviewedAt: new Date() } });
   await writeAuditLog({ userId: user.id, action: "time.correction_reviewed", entity: "TimeCorrectionRequest", entityId: request.id, before: before ?? undefined, after: { status: request.status } });
   revalidatePath("/dashboard");
+}
+
+function readableTimeClockError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
+function revalidateTimeClockPaths() {
+  revalidatePath("/dashboard");
+  revalidatePath("/daily-reports");
 }
