@@ -33,16 +33,19 @@ export type MissionControlSyncResult =
   | { status: "failed"; error: string };
 
 export async function syncLeadHandoffToMissionControl(payload: MissionControlLeadPayload): Promise<MissionControlSyncResult> {
-  if (!env.MISSION_CONTROL_WEBHOOK_URL) {
+  const webhookUrl = env.MISSION_CONTROL_WEBHOOK_URL ?? env.GHOST_MISSION_CONTROL_WEBHOOK_URL;
+  const webhookSecret = env.MISSION_CONTROL_WEBHOOK_SECRET ?? env.GHOST_MISSION_CONTROL_WEBHOOK_SECRET;
+
+  if (!webhookUrl) {
     return { status: "not_configured" };
   }
 
   try {
-    const response = await fetch(env.MISSION_CONTROL_WEBHOOK_URL, {
+    const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(env.MISSION_CONTROL_WEBHOOK_SECRET ? { authorization: `Bearer ${env.MISSION_CONTROL_WEBHOOK_SECRET}` } : {})
+        ...(webhookSecret ? { authorization: `Bearer ${webhookSecret}` } : {})
       },
       body: JSON.stringify({
         event: "ghost_portal.lead_handoff",

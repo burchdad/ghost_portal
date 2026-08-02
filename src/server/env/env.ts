@@ -11,6 +11,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   MISSION_CONTROL_WEBHOOK_URL: z.string().url().optional(),
   MISSION_CONTROL_WEBHOOK_SECRET: z.string().optional(),
+  GHOST_MISSION_CONTROL_WEBHOOK_URL: z.string().url().optional(),
+  GHOST_MISSION_CONTROL_WEBHOOK_SECRET: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).optional()
 });
 
