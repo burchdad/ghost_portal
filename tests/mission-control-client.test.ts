@@ -54,8 +54,23 @@ describe("Mission Control client", () => {
       headers: expect.objectContaining({
         authorization: "Bearer secret-token",
         "x-ghost-webhook-secret": "secret-token",
-        "x-webhook-secret": "secret-token"
+        "x-webhook-secret": "secret-token",
+        "x-mission-control-token": "secret-token"
       })
     }));
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    expect(body).toMatchObject({
+      event: "ghost_portal.lead_handoff",
+      requestType: "lead_handoff",
+      request_type: "lead_handoff",
+      summary: "Lead handoff: Acme Plumbing",
+      title: "Lead handoff: Acme Plumbing",
+      leadId: "lead_1",
+      businessName: "Acme Plumbing",
+      payload: expect.objectContaining({ leadId: "lead_1", businessName: "Acme Plumbing" }),
+      lead: expect.objectContaining({ leadId: "lead_1", businessName: "Acme Plumbing" })
+    });
+    expect(body.details).toContain("Possible website need.");
+    expect(body.message).toBe(body.details);
   });
 });

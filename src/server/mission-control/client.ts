@@ -49,14 +49,12 @@ export async function syncLeadHandoffToMissionControl(payload: MissionControlLea
           ? {
               authorization: `Bearer ${webhookSecret}`,
               "x-ghost-webhook-secret": webhookSecret,
-              "x-webhook-secret": webhookSecret
+              "x-webhook-secret": webhookSecret,
+              "x-mission-control-token": webhookSecret
             }
           : {})
       },
-      body: JSON.stringify({
-        event: "ghost_portal.lead_handoff",
-        payload
-      })
+      body: JSON.stringify(buildWebhookBody(payload))
     });
 
     const responseBody = await readResponseBody(response);
@@ -72,6 +70,45 @@ export async function syncLeadHandoffToMissionControl(payload: MissionControlLea
   } catch (error) {
     return { status: "failed", error: error instanceof Error ? error.message : "Unknown Mission Control sync failure" };
   }
+}
+
+function buildWebhookBody(payload: MissionControlLeadPayload) {
+  const leadName = payload.businessName ?? payload.contactName ?? payload.leadId;
+  const summary = `Lead handoff: ${leadName}`;
+  const details = [
+    `Stage: ${payload.missionControlStage}`,
+    `Need: ${payload.needDiscovered.join(", ") || "Not specified"}`,
+    `Interest: ${payload.interestLevel}`,
+    `Recommended next action: ${payload.recommendedNextAction}`,
+    payload.conversationSummary ? `Conversation: ${payload.conversationSummary}` : null
+  ].filter(Boolean).join("\n");
+
+  return {
+    event: "ghost_portal.lead_handoff",
+    source: "ghost_ops_portal",
+    requestType: "lead_handoff",
+    request_type: "lead_handoff",
+    priority: payload.interestLevel === "StrongInterest" || payload.interestLevel === "MeetingRequested" ? "High" : "Medium",
+    summary,
+    title: summary,
+    details,
+    message: details,
+    leadId: payload.leadId,
+    businessName: payload.businessName,
+    contactName: payload.contactName,
+    email: payload.email,
+    phone: payload.phone,
+    missionControlStage: payload.missionControlStage,
+    payload,
+    lead: payload,
+    metadata: {
+      sourceSystem: payload.sourceSystem,
+      leadId: payload.leadId,
+      missionControlStage: payload.missionControlStage,
+      recommendedOffer: payload.recommendedOffer,
+      doNotContact: payload.doNotContact
+    }
+  };
 }
 
 async function readResponseBody(response: Response) {
