@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
@@ -92,6 +93,11 @@ export async function submitSupportTicketFormAction(_state: SupportTicketState, 
       message: readableFeedbackError(error)
     };
   }
+}
+
+export async function createSupportTicketAction(formData: FormData) {
+  const feedback = await submitFeedback(formData);
+  redirect(`/support?submitted=${encodeURIComponent(feedback.supportKey ?? feedback.id)}`);
 }
 
 export async function updateFeedbackStatusAction(formData: FormData) {

@@ -1,10 +1,5 @@
-"use client";
-
-import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { submitSupportTicketFormAction, type SupportTicketState } from "@/server/workflows/feedback";
-
-const initialState: SupportTicketState = { status: "idle" };
+import { createSupportTicketAction } from "@/server/workflows/feedback";
 
 export function SupportTicketForm({
   ticketTypes,
@@ -15,10 +10,8 @@ export function SupportTicketForm({
   severities: string[];
   missionAreas: string[];
 }) {
-  const [state, action, pending] = useActionState(submitSupportTicketFormAction, initialState);
-
   return (
-    <form action={action} className="grid gap-3">
+    <form action={createSupportTicketAction} className="grid gap-3">
       <div className="grid gap-3 md:grid-cols-2">
         <label className="text-sm font-medium">
           Ticket type
@@ -69,12 +62,7 @@ export function SupportTicketForm({
         <input name="blocked" type="checkbox" />
         This is blocking current work
       </label>
-      <Button variant="accent" disabled={pending}>{pending ? "Submitting..." : "Submit support ticket"}</Button>
-      {state.message ? (
-        <p className={`rounded-lg border px-3 py-2 text-sm ${state.status === "error" ? "border-danger/30 bg-danger/10 text-danger" : "border-accent/30 bg-accent/10 text-accent"}`}>
-          {state.message}
-        </p>
-      ) : null}
+      <Button variant="accent">Submit support ticket</Button>
     </form>
   );
 }

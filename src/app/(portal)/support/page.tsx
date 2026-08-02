@@ -9,8 +9,9 @@ const ticketTypes = ["Bug", "WorkflowIssue", "FeatureRequest", "ConfusingInterfa
 const severities = ["Low", "Medium", "High", "Urgent"];
 const missionAreas = ["Ops Portal", "Ghost Academy", "Nova", "Mission Control", "Tasks", "Clients", "Leads", "Daily Reports", "Approvals", "Files", "Notifications", "Deployment", "Data", "Other"];
 
-export default async function SupportPage() {
+export default async function SupportPage({ searchParams }: { searchParams?: Promise<{ submitted?: string }> }) {
   const user = await requirePermission("support:create");
+  const params = await searchParams;
   const tickets = await getPrisma().feedbackSubmission.findMany({
     where: user.role === "Founder" ? {} : { submittedById: user.id },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
@@ -21,6 +22,11 @@ export default async function SupportPage() {
     <PageSection eyebrow="Support Agent" title="Get help fast" description="Submit Ops Portal or Mission Control issues with enough context for Stephen to fix, route, or prioritize quickly.">
       <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
         <Card>
+          {params?.submitted ? (
+            <p className="mb-4 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent">
+              Support ticket {params.submitted} was submitted to Stephen.
+            </p>
+          ) : null}
           <SupportTicketForm ticketTypes={ticketTypes} severities={severities} missionAreas={missionAreas} />
         </Card>
 
