@@ -10,7 +10,36 @@ import { syncLeadHandoffToMissionControl, type MissionControlLeadPayload } from 
 import { canAccessLead, requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
 
+export type CreateLeadState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+  leadId?: string;
+};
+
 export async function createLeadAction(formData: FormData) {
+  const result = await createLeadFromFormData(formData);
+  redirect(result.startCall ? `/leads/${result.lead.id}?call=1#quick-call` : `/leads/${result.lead.id}`);
+}
+
+export async function createLeadQuickAddAction(_state: CreateLeadState, formData: FormData): Promise<CreateLeadState> {
+  try {
+    const result = await createLeadFromFormData(formData);
+    return {
+      status: "success",
+      message: `${result.lead.company} was saved to Ops Portal.`,
+      leadId: result.lead.id
+    };
+  } catch (error) {
+    const message = readableLeadError(error);
+    console.error("[leads.create.quick_add.failed]", { message, error });
+    return {
+      status: "error",
+      message
+    };
+  }
+}
+
+async function createLeadFromFormData(formData: FormData) {
   const user = await requireUser();
   if (!canWorkLeads(user)) throw new Error("Forbidden: leads:update:assigned");
 
@@ -80,8 +109,15 @@ export async function createLeadAction(formData: FormData) {
   });
 
   await writeAuditLog({ userId: user.id, action: "lead.created", entity: "Lead", entityId: lead.id, after: { company: lead.company } });
+  console.info("[leads.create.success]", {
+    leadId: lead.id,
+    company: lead.company,
+    createdById: user.id,
+    assignedUserId,
+    startCall
+  });
   revalidatePath("/leads");
-  redirect(startCall ? `/leads/${lead.id}?call=1#quick-call` : `/leads/${lead.id}`);
+  return { lead, startCall };
 }
 
 export async function updateLeadOperationalAction(formData: FormData) {
@@ -264,6 +300,12 @@ export async function logCallActivityAction(formData: FormData) {
     })] : [])
   ]);
   await writeAuditLog({ userId: user.id, action: "call.logged", entity: "Lead", entityId: parsed.leadId, after: parsed });
+  console.info("[leads.call.logged]", {
+    leadId: parsed.leadId,
+    userId: user.id,
+    outcome: parsed.outcome,
+    needsStephen: reviewTriggers.length > 0
+  });
   revalidatePath("/leads");
   revalidatePath(`/leads/${parsed.leadId}`);
 }
@@ -466,6 +508,12 @@ export async function sendLeadToMissionControlAction(formData: FormData) {
     getPrisma().activity.create({ data: { actorId: user.id, action: `mission control handoff: ${stage}`, target: lead.company } })
   ]);
   await writeAuditLog({ userId: user.id, action: "lead.mission_control_handoff", entity: "Lead", entityId: parsed.leadId, after: { payload, syncResult: jsonSyncResult } as Prisma.InputJsonValue });
+  console.info("[leads.mission_control_handoff]", {
+    leadId: parsed.leadId,
+    userId: user.id,
+    level: parsed.level,
+    syncStatus: syncResult.status
+  });
   revalidatePath("/leads");
   revalidatePath(`/leads/${parsed.leadId}`);
 }
@@ -687,4 +735,13 @@ function emptyToNull(value: string | undefined) {
 function stringOrUndefined(value: FormDataEntryValue | null) {
   if (typeof value !== "string") return undefined;
   return value.trim() ? value.trim() : undefined;
+}
+
+function readableLeadError(error: unknown) {
+  if (error instanceof z.ZodError) {
+    const fields = error.issues.map((issue) => issue.path.join(".") || "field").join(", ");
+    return `Lead was not saved. Check required fields: ${fields}.`;
+  }
+  if (error instanceof Error) return `Lead was not saved. ${error.message}`;
+  return "Lead was not saved. Please try again.";
 }

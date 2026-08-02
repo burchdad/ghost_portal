@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
-import { createLeadAction } from "@/server/workflows/leads";
+import { QuickAddLeadForm } from "./quick-add-lead-form";
 
 const leadSources = ["Manual Cold Call", "Vega", "Referral", "Facebook", "Networking", "Website Inquiry", "Email", "Partner", "Existing Relationship", "Other"];
 const filters = ["New", "Ready to Call", "No Answer", "Follow-Up Due", "Interested", "Sales-Ready", "Qualified", "Sent to Mission Control", "Returned for Information", "Meeting Booked", "Do Not Contact"];
@@ -40,25 +40,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       {canCreate ? (
         <Card className="mb-5">
           <h3 className="mb-4 text-lg font-semibold">Quick Add Lead</h3>
-          <form action={createLeadAction} className="grid gap-3 lg:grid-cols-4">
-            <input name="company" required placeholder="Business name" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
-            <input name="contactMethod" required placeholder="Phone number or email" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
-            <select name="leadSource" required defaultValue="Manual Cold Call" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
-              {leadSources.map((source) => <option key={source} value={source}>{source}</option>)}
-            </select>
-            <select name="assignedUserId" required defaultValue={user.id} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
-              {users.map((row) => <option key={row.id} value={row.id}>{row.preferredName ?? row.name}</option>)}
-            </select>
-            <input name="contactName" placeholder="Contact name" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
-            <input name="website" placeholder="Website" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
-            <input name="industry" placeholder="Industry" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
-            <input name="location" placeholder="Location" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
-            <textarea name="initialNote" placeholder="Initial note" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm lg:col-span-4" />
-            <div className="flex flex-wrap gap-2 lg:col-span-4">
-              <Button name="intent" value="startCall" variant="accent">Create and Start Call</Button>
-              <Button name="intent" value="create" variant="outline">Create Lead</Button>
-            </div>
-          </form>
+          <QuickAddLeadForm currentUserId={user.id} users={users} leadSources={leadSources} />
         </Card>
       ) : null}
 
@@ -115,7 +97,7 @@ function whereForFilter(filter: string): Prisma.LeadWhereInput {
   if (filter === "Returned for Information") return { handoffStatus: "ReturnedForInformation" };
   if (filter === "Meeting Booked") return { stage: "MeetingScheduled" };
   if (filter === "Do Not Contact") return { doNotContact: true };
-  return { stage: "New" };
+  return { stage: { in: ["New", "ReadyToCall"] } };
 }
 
 function buildSourceMetrics(leads: Array<{ leadSource: string | null; callActivities: Array<{ outcome: string }>; handoffStatus: string; stage: string; interestLevel: string }>) {
