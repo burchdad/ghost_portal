@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
+import { CrmKanbanBoard, type CrmKanbanLead, type CrmKanbanStage } from "@/components/portal/crm-kanban-board";
 import { PageSection } from "@/components/portal/page-section";
 import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,25 @@ export default async function CrmPage() {
   ]);
   const syncedOpsLeadIds = new Set(ghostCrm.leads.map((lead) => lead.externalId).filter(Boolean));
   const metrics = buildMetrics(ghostCrm.leads, opsLeads, syncedOpsLeadIds);
+  const boardLeads = opsLeads.map((lead): CrmKanbanLead => {
+    const lastCall = lead.callActivities[0];
+    const synced = lead.ghostCrmStatus === "Synced" || syncedOpsLeadIds.has(lead.id);
+    return {
+      id: lead.id,
+      company: lead.company,
+      contact: lead.contactName ?? lead.contactEmail ?? lead.contactPhone ?? "Unknown contact",
+      stage: kanbanStage(lead.stage),
+      interest: interestLabel(lead.interestLevel),
+      source: lead.leadSource ?? "Unknown",
+      assignedTo: lead.assignedUser?.preferredName ?? lead.assignedUser?.name ?? "Unassigned",
+      missionControlStatus: lead.missionControlStatus,
+      ghostCrmStatus: synced ? "Synced" : lead.ghostCrmStatus,
+      ghostCrmSyncError: lead.ghostCrmSyncError,
+      value: formatMoney(Number(lead.approvedValue ?? lead.estimatedValue ?? 0)),
+      lastActivity: lastCall?.outcome ?? lead.callResult ?? "No calls",
+      href: `/leads/${lead.id}`
+    };
+  });
 
   return (
     <PageSection eyebrow="GhostCRM" title="CRM" description="A shared CRM workspace for GhostCRM Core records and Ops Portal lead activity.">
@@ -74,6 +94,8 @@ export default async function CrmPage() {
           />
         </div>
       ) : null}
+
+      <CrmKanbanBoard leads={boardLeads} canSync={canSync} />
 
       <div>
         <h3 className="mb-3 text-lg font-semibold">Ops Portal CRM bridge</h3>
@@ -152,4 +174,19 @@ function interestLabel(value: string) {
   if (value === "StrongInterest") return "Strong Interest";
   if (value === "MeetingRequested") return "Meeting Requested";
   return value;
+}
+
+function kanbanStage(value: string): CrmKanbanStage {
+  if (value === "Researching") return "New";
+  if (value === "Contacted") return "Connected";
+  if (value === "Interested") return "Qualified";
+  if (value === "FollowUp") return "Nurture";
+  if (value === "MeetingScheduled") return "Discovery";
+  if (value === "Negotiation") return "Proposal";
+  if (isKanbanStage(value)) return value;
+  return "New";
+}
+
+function isKanbanStage(value: string): value is CrmKanbanStage {
+  return ["New", "ReadyToCall", "Attempted", "Connected", "Qualified", "Discovery", "Proposal", "Won", "Lost", "Nurture", "DoNotContact"].includes(value);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { createLeadAction, logCallActivityAction, sendLeadToMissionControlAction, syncLeadToGhostCrmAction } from "@/server/workflows/leads";
+import { createLeadAction, logCallActivityAction, sendLeadToMissionControlAction, syncLeadToGhostCrmAction, updateLeadCrmStageAction } from "@/server/workflows/leads";
 import { syncLeadHandoffToMissionControl } from "@/server/mission-control/client";
 import { syncLeadToGhostCrm } from "@/server/data/ghostcrm-core";
 
@@ -308,6 +308,70 @@ describe("lead workflows", () => {
         ghostCrmSyncedAt: expect.any(Date),
         ghostCrmSyncError: null,
         ghostCrmSyncAttempts: { increment: 1 }
+      })
+    }));
+  });
+
+  it("moves a CRM board lead and auto-syncs the new stage to GhostCRM Core", async () => {
+    prismaMock.lead.findUnique
+      .mockResolvedValueOnce({
+        id: "lead_1",
+        company: "Acme Plumbing",
+        stage: "Discovery",
+        ghostCrmStatus: "Synced",
+        ghostCrmSyncError: null
+      })
+      .mockResolvedValueOnce({
+        id: "lead_1",
+        company: "Acme Plumbing",
+        contactName: "Dana Lee",
+        contactEmail: "dana@example.test",
+        contactPhone: "555-0100",
+        website: "https://acme.example.test",
+        leadSource: "Manual Cold Call",
+        stage: "Proposal",
+        interestLevel: "Interested",
+        needsStephenReview: false,
+        approvedValue: null,
+        estimatedValue: 12000,
+        qualificationSummary: "Discovery complete.",
+        notes: "Proposal requested.",
+        missionControlStatus: "Sent to Mission Control",
+        handoffStatus: "SentToMissionControl",
+        needDiscovered: ["Website"],
+        appointmentStatus: "Proposal requested",
+        nextAction: "Prepare proposal",
+        callActivities: [{ outcome: "Interested", summary: "Asked for proposal.", occurredAt: new Date("2026-08-03T15:00:00.000Z") }]
+      });
+    prismaMock.lead.update.mockResolvedValue({ id: "lead_1" });
+
+    const form = new FormData();
+    form.set("leadId", "lead_1");
+    form.set("stage", "Proposal");
+    form.set("autoSync", "true");
+
+    await updateLeadCrmStageAction(form);
+
+    expect(prismaMock.lead.update).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: { id: "lead_1" },
+      data: expect.objectContaining({
+        stage: "Proposal",
+        ghostCrmStatus: "Needs Sync",
+        ghostCrmSyncError: null
+      })
+    }));
+    expect(syncLeadToGhostCrm).toHaveBeenCalledWith(expect.objectContaining({
+      id: "lead_1",
+      stage: "proposal",
+      customFields: expect.objectContaining({
+        nextAction: "Prepare proposal"
+      })
+    }));
+    expect(prismaMock.lead.update).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: { id: "lead_1" },
+      data: expect.objectContaining({
+        ghostCrmStatus: "Synced",
+        ghostCrmExternalId: "crm_lead_1"
       })
     }));
   });

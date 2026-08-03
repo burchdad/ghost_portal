@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
+import { LeadStage, type Prisma } from "@prisma/client";
 import { z } from "zod";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
@@ -531,6 +531,87 @@ export async function syncLeadToGhostCrmAction(formData: FormData) {
   });
   if (!lead) throw new Error("Lead not found");
 
+  await syncLeadRecordToGhostCrm(lead, user.id);
+  revalidatePath("/crm");
+  revalidatePath(`/leads/${lead.id}`);
+}
+
+export async function updateLeadCrmStageAction(formData: FormData) {
+  const user = await requireUser();
+  const parsed = z.object({
+    leadId: z.string().min(1),
+    stage: z.nativeEnum(LeadStage),
+    autoSync: z.boolean().default(false)
+  }).parse({
+    leadId: formData.get("leadId"),
+    stage: formData.get("stage"),
+    autoSync: formData.get("autoSync") === "true"
+  });
+  if (!(await canAccessLead(user, parsed.leadId, "Edit"))) throw new Error("Forbidden: lead");
+
+  const prisma = getPrisma();
+  const before = await prisma.lead.findUnique({ where: { id: parsed.leadId } });
+  if (!before) throw new Error("Lead not found");
+  if (before.stage === parsed.stage) return;
+
+  await prisma.lead.update({
+    where: { id: parsed.leadId },
+    data: {
+      stage: parsed.stage,
+      ghostCrmStatus: before.ghostCrmStatus === "Synced" ? "Needs Sync" : before.ghostCrmStatus,
+      ghostCrmSyncError: before.ghostCrmStatus === "Synced" ? null : before.ghostCrmSyncError
+    }
+  });
+  await prisma.activity.create({
+    data: { actorId: user.id, action: `moved CRM lead: ${before.stage} to ${parsed.stage}`, target: before.company }
+  });
+  await writeAuditLog({
+    userId: user.id,
+    action: "lead.crm_stage_updated",
+    entity: "Lead",
+    entityId: parsed.leadId,
+    before: { stage: before.stage, ghostCrmStatus: before.ghostCrmStatus },
+    after: { stage: parsed.stage }
+  });
+
+  if (parsed.autoSync && hasPermission(user, "crm:sync")) {
+    const updated = await prisma.lead.findUnique({
+      where: { id: parsed.leadId },
+      include: { callActivities: { orderBy: { occurredAt: "desc" }, take: 5 } }
+    });
+    if (updated) await syncLeadRecordToGhostCrm(updated, user.id);
+  }
+
+  revalidatePath("/crm");
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${parsed.leadId}`);
+}
+
+async function syncLeadRecordToGhostCrm(
+  lead: {
+    id: string;
+    company: string;
+    contactName: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    website: string | null;
+    leadSource: string | null;
+    stage: string;
+    interestLevel: string;
+    needsStephenReview: boolean;
+    approvedValue: Prisma.Decimal | null;
+    estimatedValue: Prisma.Decimal | null;
+    qualificationSummary: string | null;
+    notes: string | null;
+    missionControlStatus: string;
+    handoffStatus: string;
+    needDiscovered: string[];
+    appointmentStatus: string | null;
+    nextAction: string | null;
+    callActivities: Array<{ outcome: string; summary: string; occurredAt: Date }>;
+  },
+  userId: string
+) {
   const name = splitContactName(lead.contactName);
   const result = await syncLeadToGhostCrm({
     id: lead.id,
@@ -575,9 +656,7 @@ export async function syncLeadToGhostCrmAction(formData: FormData) {
     }
   });
 
-  await writeAuditLog({ userId: user.id, action: "lead.ghostcrm_sync", entity: "Lead", entityId: lead.id, after: jsonResult });
-  revalidatePath("/crm");
-  revalidatePath(`/leads/${lead.id}`);
+  await writeAuditLog({ userId, action: "lead.ghostcrm_sync", entity: "Lead", entityId: lead.id, after: jsonResult });
 }
 
 export async function requestPricingApprovalAction(formData: FormData) {
