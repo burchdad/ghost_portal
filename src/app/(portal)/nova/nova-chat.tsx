@@ -1,13 +1,21 @@
 "use client";
 
 import { FormEvent, useMemo, useRef, useState } from "react";
-import { Bot, CornerDownLeft, Loader2, Send, Sparkles, UserRound } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Bot, CornerDownLeft, Loader2, Send, Sparkles, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+type NovaAction = {
+  label: string;
+  href: string;
+  detail: string;
+};
 
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+  actions?: NovaAction[];
 };
 
 const promptGroups = [
@@ -54,8 +62,8 @@ export function NovaChat({ summary, userName, userRole }: { summary: string; use
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nextMessages.slice(-10) })
       });
-      const data = await response.json() as { message?: string; error?: string };
-      setMessages([...nextMessages, { role: "assistant", content: data.message ?? data.error ?? "Nova could not answer that request." }]);
+      const data = await response.json() as { message?: string; error?: string; actions?: NovaAction[] };
+      setMessages([...nextMessages, { role: "assistant", content: data.message ?? data.error ?? "Nova could not answer that request.", actions: data.actions }]);
     } catch {
       setMessages([...nextMessages, { role: "assistant", content: "Nova could not connect. Try again in a moment." }]);
     } finally {
@@ -87,7 +95,7 @@ export function NovaChat({ summary, userName, userRole }: { summary: string; use
           </div>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5">
+        <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
           {messages.map((message, index) => (
             <MessageBubble key={`${message.role}-${index}`} message={message} />
           ))}
@@ -154,8 +162,27 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <Bot className="size-4" />
         </div>
       ) : null}
-      <div className={cn("max-w-[78ch] whitespace-pre-wrap rounded-lg px-4 py-3 text-sm leading-6", isUser ? "bg-accent text-zinc-950" : "border border-white/10 bg-white/[0.055] text-white/72")}>
-        {message.content}
+      <div className="max-w-[78ch] space-y-3">
+        <div className={cn("whitespace-pre-wrap rounded-lg px-4 py-3 text-sm leading-6", isUser ? "bg-accent text-zinc-950" : "border border-white/10 bg-white/[0.055] text-white/72")}>
+          {message.content}
+        </div>
+        {!isUser && message.actions?.length ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {message.actions.map((action) => (
+              <Link
+                key={`${action.href}-${action.label}`}
+                href={action.href}
+                className="group rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-white/68 transition hover:border-accent/40 hover:bg-accent/10 hover:text-white"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{action.label}</span>
+                  <ArrowUpRight className="size-4 text-white/35 transition group-hover:text-accent" />
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/45">{action.detail}</p>
+              </Link>
+            ))}
+          </div>
+        ) : null}
       </div>
       {isUser ? (
         <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.05] text-white/65">

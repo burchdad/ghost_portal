@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { buildNovaSummary } from "@/server/data/dashboard";
 import { getPrisma } from "@/server/db/prisma";
 import { env } from "@/server/env/env";
+import { hasPermission } from "@/server/permissions/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,12 @@ const requestSchema = z.object({
   })).min(1).max(12)
 });
 
+type NovaAction = {
+  label: string;
+  href: string;
+  detail: string;
+};
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,6 +30,7 @@ export async function POST(request: Request) {
 
   const messages = parsed.data.messages.slice(-8);
   const portalContext = await buildNovaContext(user);
+  const actions = buildNovaActions(messages.at(-1)?.content ?? "", portalContext);
 
   if (!env.OPENAI_API_KEY) {
     return NextResponse.json({
@@ -32,7 +40,8 @@ export async function POST(request: Request) {
         portalContext.summary,
         "",
         "I can still point you to the right workspace: approvals, tasks, CRM, leads, daily reports, or support."
-      ].join("\n")
+      ].join("\n"),
+      actions
     });
   }
 
@@ -58,34 +67,91 @@ export async function POST(request: Request) {
   }
 
   const data = await response.json() as { output_text?: string };
-  return NextResponse.json({ message: data.output_text?.trim() || "Nova did not return a response." });
+  return NextResponse.json({ message: data.output_text?.trim() || "Nova did not return a response.", actions });
 }
 
 async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
   const prisma = getPrisma();
-  const [summary, tasks, approvals, leads, supportTickets] = await Promise.all([
+  const canSeeAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
+  const canSeeAssignedClients = hasPermission(user, "clients:read:assigned");
+  const canReadKnowledge = hasPermission(user, "knowledge:read");
+  const canReadPricing = hasPermission(user, "pricing:read");
+  const canReadProjects = hasPermission(user, "projects:read:assigned");
+  const [summary, tasks, approvals, leads, clients, projects, pricing, sops, knowledge, dailyReports, files, supportTickets] = await Promise.all([
     buildNovaSummary(user),
     prisma.task.findMany({
       where: user.role === "Founder" ? { archivedAt: null } : { ownerId: user.id, archivedAt: null },
-      select: { title: true, status: true, priority: true, dueDate: true },
+      select: { id: true, title: true, status: true, priority: true, dueDate: true },
       orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
       take: 6
     }),
     prisma.approval.findMany({
       where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id },
-      select: { summary: true, status: true, priority: true, deadline: true },
+      select: { id: true, summary: true, status: true, priority: true, deadline: true },
       orderBy: [{ priority: "desc" }, { deadline: "asc" }],
       take: 5
     }),
     prisma.lead.findMany({
       where: user.role === "Founder" ? { archivedAt: null } : { assignedUserId: user.id, archivedAt: null },
-      select: { company: true, contactName: true, stage: true, interestLevel: true, nextAction: true, followUpDate: true, missionControlStatus: true },
+      select: { id: true, company: true, contactName: true, stage: true, interestLevel: true, nextAction: true, followUpDate: true, missionControlStatus: true },
       orderBy: [{ followUpDate: "asc" }, { updatedAt: "desc" }],
       take: 6
     }),
+    prisma.client.findMany({
+      where: canSeeAllClients
+        ? { archivedAt: null }
+        : canSeeAssignedClients
+          ? { archivedAt: null, access: { some: { userId: user.id } } }
+          : { id: "__no_client_access__" },
+      select: { id: true, company: true, status: true, services: true, riskStatus: true, nextFollowUp: true },
+      orderBy: [{ riskStatus: "desc" }, { updatedAt: "desc" }],
+      take: 6
+    }),
+    prisma.project.findMany({
+      where: user.role === "Founder" ? { archivedAt: null } : canReadProjects ? { archivedAt: null, tasks: { some: { ownerId: user.id } } } : { id: "__no_project_access__" },
+      select: { id: true, name: true, status: true, timeline: true },
+      orderBy: { updatedAt: "desc" },
+      take: 5
+    }),
+    canReadPricing
+      ? prisma.serviceOffering.findMany({
+          where: { active: true },
+          select: { id: true, name: true, offerType: true, category: true, pricingStatus: true, standardPriceCents: true, standardMonthlyPriceCents: true },
+          orderBy: [{ reviewPriority: "asc" }, { name: "asc" }],
+          take: 8
+        })
+      : Promise.resolve([]),
+    canReadKnowledge
+      ? prisma.sOPArticle.findMany({
+          where: { published: true, archivedAt: null, OR: [{ audienceRoles: { isEmpty: true } }, { audienceRoles: { has: user.role } }] },
+          select: { id: true, title: true, category: true, trigger: true },
+          orderBy: [{ category: "asc" }, { title: "asc" }],
+          take: 6
+        })
+      : Promise.resolve([]),
+    canReadKnowledge
+      ? prisma.knowledgeArticle.findMany({
+          where: { status: "Published", archivedAt: null, visibleToRoles: { has: user.role } },
+          select: { id: true, title: true, category: true, requiredReading: true },
+          orderBy: [{ requiredReading: "desc" }, { updatedAt: "desc" }],
+          take: 5
+        })
+      : Promise.resolve([]),
+    prisma.dailyReport.findMany({
+      where: user.role === "Founder" ? {} : { userId: user.id },
+      select: { id: true, reportDate: true, status: true, blockers: true, waitingOnStephen: true, tomorrowPriorities: true },
+      orderBy: { reportDate: "desc" },
+      take: 4
+    }),
+    prisma.fileAsset.findMany({
+      where: user.role === "Founder" ? { archivedAt: null } : { archivedAt: null, OR: [{ uploaderId: user.id }, { access: { some: { userId: user.id } } }] },
+      select: { id: true, name: true, folder: true, visibility: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 5
+    }),
     prisma.feedbackSubmission.findMany({
       where: user.role === "Founder" ? { status: { in: ["New", "Reviewing", "Planned", "InProgress"] } } : { submittedById: user.id },
-      select: { title: true, type: true, status: true, severity: true },
+      select: { id: true, title: true, type: true, status: true, severity: true },
       orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
       take: 5
     })
@@ -94,10 +160,18 @@ async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getC
   return {
     user: `${user.preferredName ?? user.name} (${user.role})`,
     summary,
-    tasks: tasks.map((task) => `${task.title} | ${task.status} | ${task.priority} | due ${task.dueDate?.toISOString() ?? "not set"}`),
-    approvals: approvals.map((approval) => `${approval.summary} | ${approval.status} | ${approval.priority} | due ${approval.deadline?.toISOString() ?? "not set"}`),
-    leads: leads.map((lead) => `${lead.company} / ${lead.contactName ?? "Unknown"} | ${lead.stage} | ${lead.interestLevel} | ${lead.missionControlStatus} | ${lead.nextAction ?? "no next action"} | follow-up ${lead.followUpDate?.toISOString() ?? "not set"}`),
-    supportTickets: supportTickets.map((ticket) => `${ticket.title} | ${ticket.type} | ${ticket.status} | ${ticket.severity}`)
+    role: user.role,
+    tasks: tasks.map((task) => ({ label: task.title, href: `/tasks/${task.id}`, detail: `${task.status} | ${task.priority} | due ${task.dueDate?.toISOString() ?? "not set"}` })),
+    approvals: approvals.map((approval) => ({ label: approval.summary, href: `/approvals/${approval.id}`, detail: `${approval.status} | ${approval.priority} | due ${approval.deadline?.toISOString() ?? "not set"}` })),
+    leads: leads.map((lead) => ({ label: lead.company, href: `/leads/${lead.id}`, detail: `${lead.contactName ?? "Unknown"} | ${lead.stage} | ${lead.interestLevel} | ${lead.missionControlStatus} | ${lead.nextAction ?? "no next action"} | follow-up ${lead.followUpDate?.toISOString() ?? "not set"}` })),
+    clients: clients.map((client) => ({ label: client.company, href: `/clients/${client.id}`, detail: `${client.status} | ${client.riskStatus} risk | ${client.services.join(", ") || "no services"} | follow-up ${client.nextFollowUp?.toISOString() ?? "not set"}` })),
+    projects: projects.map((project) => ({ label: project.name, href: `/projects`, detail: `${project.status} | ${project.timeline ?? "no timeline"}` })),
+    pricing: pricing.map((service) => ({ label: service.name, href: `/pricing`, detail: `${service.offerType} | ${service.category} | ${service.pricingStatus} | setup ${formatCents(service.standardPriceCents)} | monthly ${formatCents(service.standardMonthlyPriceCents)}` })),
+    sops: sops.map((sop) => ({ label: sop.title, href: `/sops/${sop.id}`, detail: `${sop.category} | trigger: ${sop.trigger}` })),
+    knowledge: knowledge.map((article) => ({ label: article.title, href: `/knowledge/${article.id}`, detail: `${article.category} | ${article.requiredReading ? "required" : "reference"}` })),
+    dailyReports: dailyReports.map((report) => ({ label: report.reportDate.toISOString().slice(0, 10), href: `/daily-reports/${report.id}`, detail: `${report.status} | waiting: ${report.waitingOnStephen ?? "none"} | tomorrow: ${report.tomorrowPriorities}` })),
+    files: files.map((file) => ({ label: file.name, href: `/files`, detail: `${file.folder} | ${file.visibility} | updated ${file.updatedAt.toISOString()}` })),
+    supportTickets: supportTickets.map((ticket) => ({ label: ticket.title, href: user.role === "Founder" ? `/admin/support` : `/support`, detail: `${ticket.type} | ${ticket.status} | ${ticket.severity}` }))
   };
 }
 
@@ -107,6 +181,7 @@ function novaInstructions(role: string) {
     "Answer like a focused operations partner: concise, direct, and practical.",
     "Use only the supplied portal context unless the user asks for general drafting or planning help.",
     "Do not invent client facts, prices, deadlines, commitments, or permissions.",
+    "When a user asks for action, explain what to do and reference the relevant workspace. The app may show action cards separately.",
     "Flag anything that needs Stephen approval, legal/contract review, pricing exception review, security review, or client-facing verification.",
     `The current user role is ${role}; respect that role in recommendations.`
   ].join("\n");
@@ -117,12 +192,87 @@ function formatNovaInput(context: Awaited<ReturnType<typeof buildNovaContext>>, 
     "Portal context:",
     `User: ${context.user}`,
     `Briefing: ${context.summary}`,
-    `Tasks: ${context.tasks.length ? context.tasks.join("; ") : "none visible"}`,
-    `Approvals: ${context.approvals.length ? context.approvals.join("; ") : "none visible"}`,
-    `Leads: ${context.leads.length ? context.leads.join("; ") : "none visible"}`,
-    `Support: ${context.supportTickets.length ? context.supportTickets.join("; ") : "none visible"}`,
+    `Tasks: ${formatRecords(context.tasks)}`,
+    `Approvals: ${formatRecords(context.approvals)}`,
+    `Leads: ${formatRecords(context.leads)}`,
+    `Clients: ${formatRecords(context.clients)}`,
+    `Projects: ${formatRecords(context.projects)}`,
+    `Pricing: ${formatRecords(context.pricing)}`,
+    `SOPs: ${formatRecords(context.sops)}`,
+    `Knowledge: ${formatRecords(context.knowledge)}`,
+    `Daily reports: ${formatRecords(context.dailyReports)}`,
+    `Files: ${formatRecords(context.files)}`,
+    `Support: ${formatRecords(context.supportTickets)}`,
     "",
     "Conversation:",
     ...messages.map((message) => `${message.role === "user" ? "User" : "Nova"}: ${message.content}`)
   ].join("\n");
+}
+
+function buildNovaActions(message: string, context: Awaited<ReturnType<typeof buildNovaContext>>): NovaAction[] {
+  const lower = message.toLowerCase();
+  const actions: NovaAction[] = [];
+  const add = (action: NovaAction) => {
+    if (!actions.some((existing) => existing.href === action.href && existing.label === action.label)) actions.push(action);
+  };
+
+  if (mentions(lower, ["lead", "crm", "pipeline", "call", "mission control", "sync"])) {
+    add({ label: "Open CRM board", href: "/crm", detail: "Review pipeline columns and sync status." });
+    add({ label: "Open lead queue", href: "/leads", detail: "Filter, search, and follow up with leads." });
+    context.leads.slice(0, 2).forEach(add);
+  }
+  if (mentions(lower, ["approval", "decision", "stephen", "waiting"])) {
+    add({ label: "Open approvals", href: "/approvals", detail: "Review open decisions and bottlenecks." });
+    context.approvals.slice(0, 2).forEach(add);
+  }
+  if (mentions(lower, ["task", "priority", "today", "work", "overdue"])) {
+    add({ label: "Open tasks", href: "/tasks", detail: "See assigned work, due dates, and status." });
+    context.tasks.slice(0, 2).forEach(add);
+  }
+  if (mentions(lower, ["client", "customer", "account"])) {
+    add({ label: "Open clients", href: "/clients", detail: "Review client records and operational status." });
+    context.clients.slice(0, 2).forEach(add);
+  }
+  if (mentions(lower, ["price", "pricing", "quote", "discount", "offer", "service"])) {
+    add({ label: "Open pricing", href: "/pricing", detail: "Check approved service positioning and pricing rules." });
+    context.pricing.slice(0, 2).forEach(add);
+  }
+  if (mentions(lower, ["sop", "policy", "knowledge", "training", "academy", "explain"])) {
+    add({ label: "Open SOP Library", href: "/sops", detail: "Find step-by-step operating procedures." });
+    add({ label: "Open Knowledge Base", href: "/knowledge", detail: "Review articles and required reading." });
+    context.sops.slice(0, 1).forEach(add);
+    context.knowledge.slice(0, 1).forEach(add);
+  }
+  if (mentions(lower, ["report", "daily", "end-of-day", "hours", "clock"])) {
+    add({ label: "Open daily reports", href: "/daily-reports", detail: "Review submitted reports and blockers." });
+    add({ label: "Create daily report", href: "/daily-reports/new", detail: "Submit end-of-day work details." });
+  }
+  if (mentions(lower, ["support", "bug", "issue", "broken", "feedback"])) {
+    add({ label: context.role === "Founder" ? "Open support queue" : "Create support ticket", href: context.role === "Founder" ? "/admin/support" : "/support", detail: "Track product issues and improvement requests." });
+    context.supportTickets.slice(0, 2).forEach(add);
+  }
+  if (mentions(lower, ["file", "document", "asset", "upload"])) {
+    add({ label: "Open files", href: "/files", detail: "Find uploaded assets and documents." });
+    context.files.slice(0, 2).forEach(add);
+  }
+
+  if (!actions.length) {
+    add({ label: "Dashboard", href: "/dashboard", detail: "Return to the operational command center." });
+    add({ label: "Tasks", href: "/tasks", detail: "Review assigned work." });
+    add({ label: "CRM", href: "/crm", detail: "Review current lead pipeline." });
+  }
+
+  return actions.slice(0, 5);
+}
+
+function formatRecords(records: Array<{ label: string; href: string; detail: string }>) {
+  return records.length ? records.map((record) => `${record.label} (${record.href}) | ${record.detail}`).join("; ") : "none visible";
+}
+
+function mentions(input: string, words: string[]) {
+  return words.some((word) => input.includes(word));
+}
+
+function formatCents(cents: number | null) {
+  return typeof cents === "number" ? `$${(cents / 100).toLocaleString()}` : "not set";
 }
