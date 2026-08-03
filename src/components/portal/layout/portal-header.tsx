@@ -32,7 +32,7 @@ export function PortalHeader({ user, unreadNotifications }: { user: SessionUser;
         <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
           <Link href="/nova">
             <Bot className="size-4" />
-            Nova
+            Agents
           </Link>
         </Button>
         <div className="hidden items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 md:flex">
