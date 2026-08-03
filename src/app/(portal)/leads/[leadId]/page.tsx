@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/portal/date-time-controls";
 import { canAccessLead, minimizeLeadForUser, requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { getPrisma } from "@/server/db/prisma";
 import { grantLeadAccessAction, revokeLeadAccessAction } from "@/server/workflows/record-access";
-import { logCallActivityAction, requestPricingApprovalAction, requestStephenLeadReviewAction, sendLeadToMissionControlAction, updateLeadOperationalAction, updateLeadQualificationAction } from "@/server/workflows/leads";
+import { logCallActivityAction, requestPricingApprovalAction, requestStephenLeadReviewAction, sendLeadToMissionControlAction, syncLeadToGhostCrmAction, updateLeadOperationalAction, updateLeadQualificationAction } from "@/server/workflows/leads";
 import { CopyContactButton } from "./copy-contact-button";
 
 const leadSources = ["Manual Cold Call", "Vega", "Referral", "Facebook", "Networking", "Website Inquiry", "Email", "Partner", "Existing Relationship", "Other"];
@@ -39,6 +40,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
 
   const visibleLead = minimizeLeadForUser(user, lead);
   const lastActivity = lead.callActivities[0];
+  const canSyncCrm = hasPermission(user, "crm:sync");
 
   return (
     <PageSection eyebrow="Lead workspace" title={visibleLead.company} description="Progressively enrich raw prospects, log calls, and hand off only when enough signal exists.">
@@ -202,6 +204,23 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
                 <Button name="level" value="discovery" variant="outline">Send to Mission Control for Discovery</Button>
                 <Button name="level" value="qualified" variant="accent">Promote as Qualified Opportunity</Button>
               </form>
+            </Card>
+
+            <Card>
+              <h3 className="font-semibold">GhostCRM Core</h3>
+              <div className="mt-3 grid gap-2 text-sm text-white/58">
+                <p>Status: {visibleLead.ghostCrmStatus}</p>
+                <p>Core ID: {visibleLead.ghostCrmExternalId ?? "Not synced"}</p>
+                <p>Attempts: {visibleLead.ghostCrmSyncAttempts}</p>
+                {visibleLead.ghostCrmSyncedAt ? <p>Last synced: {visibleLead.ghostCrmSyncedAt.toLocaleString("en-US")}</p> : null}
+                {visibleLead.ghostCrmSyncError ? <p className="text-danger">Issue: {visibleLead.ghostCrmSyncError}</p> : null}
+              </div>
+              {canSyncCrm && visibleLead.ghostCrmStatus !== "Synced" ? (
+                <form action={syncLeadToGhostCrmAction} className="mt-4">
+                  <input type="hidden" name="leadId" value={visibleLead.id} />
+                  <Button variant="accent">{visibleLead.ghostCrmStatus === "Sync Failed" ? "Retry GhostCRM Sync" : "Sync to GhostCRM"}</Button>
+                </form>
+              ) : null}
             </Card>
           </div>
 
