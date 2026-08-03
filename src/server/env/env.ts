@@ -13,6 +13,11 @@ const envSchema = z.object({
   MISSION_CONTROL_WEBHOOK_SECRET: z.string().optional(),
   GHOST_MISSION_CONTROL_WEBHOOK_URL: z.string().url().optional(),
   GHOST_MISSION_CONTROL_WEBHOOK_SECRET: z.string().optional(),
+  GHOST_CLIENT_ID: z.string().optional(),
+  GHOST_CLIENT_NAME: z.string().optional(),
+  GHOST_SITE_URL: z.string().url().optional(),
+  GHOST_REPO: z.string().optional(),
+  GHOST_WEB_HELPER_ID: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).optional()
 });
 

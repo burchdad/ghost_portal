@@ -75,8 +75,10 @@ export async function syncLeadHandoffToMissionControl(payload: MissionControlLea
 function buildWebhookBody(payload: MissionControlLeadPayload) {
   const leadName = payload.businessName ?? payload.contactName ?? payload.leadId;
   const summary = `Lead handoff: ${leadName}`;
+  const clientIdentity = getMissionControlClientIdentity();
   const details = [
     `Stage: ${payload.missionControlStage}`,
+    `Client: ${clientIdentity.clientName}`,
     `Need: ${payload.needDiscovered.join(", ") || "Not specified"}`,
     `Interest: ${payload.interestLevel}`,
     `Recommended next action: ${payload.recommendedNextAction}`,
@@ -93,6 +95,20 @@ function buildWebhookBody(payload: MissionControlLeadPayload) {
     title: summary,
     details,
     message: details,
+    clientId: clientIdentity.clientId,
+    client: clientIdentity.clientName,
+    clientName: clientIdentity.clientName,
+    client_name: clientIdentity.clientName,
+    site: clientIdentity.siteUrl,
+    siteUrl: clientIdentity.siteUrl,
+    site_url: clientIdentity.siteUrl,
+    websiteUrl: clientIdentity.siteUrl,
+    website_url: clientIdentity.siteUrl,
+    repo: clientIdentity.repo,
+    githubRepo: clientIdentity.repo,
+    github_repo: clientIdentity.repo,
+    webHelperId: clientIdentity.webHelperId,
+    page_url: "/leads",
     leadId: payload.leadId,
     businessName: payload.businessName,
     contactName: payload.contactName,
@@ -104,11 +120,27 @@ function buildWebhookBody(payload: MissionControlLeadPayload) {
     metadata: {
       sourceSystem: payload.sourceSystem,
       source: "ghost_ops_portal",
+      clientId: clientIdentity.clientId,
+      clientName: clientIdentity.clientName,
+      siteUrl: clientIdentity.siteUrl,
+      repo: clientIdentity.repo,
       leadId: payload.leadId,
       missionControlStage: payload.missionControlStage,
       recommendedOffer: payload.recommendedOffer,
       doNotContact: payload.doNotContact
     }
+  };
+}
+
+function getMissionControlClientIdentity() {
+  const appUrl = env.NEXT_PUBLIC_APP_URL ?? "https://opsportal.ghostai.solutions";
+  const clientId = env.GHOST_CLIENT_ID ?? "ghost-ai-solutions";
+  return {
+    clientId,
+    clientName: env.GHOST_CLIENT_NAME ?? "Ghost AI Solutions",
+    siteUrl: env.GHOST_SITE_URL ?? appUrl,
+    repo: env.GHOST_REPO ?? "burchdad/ghost_portal",
+    webHelperId: env.GHOST_WEB_HELPER_ID ?? `${clientId}-web-helper`
   };
 }
 
