@@ -3,16 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home } from "lucide-react";
-import { portalNavItems } from "@/components/portal/layout/nav-items";
+import { getVisiblePortalNavItems } from "@/components/portal/layout/nav-items";
 import { cn } from "@/lib/utils";
-import { hasPermission, type AuthzUser } from "@/server/permissions/roles";
+import type { AuthzUser } from "@/server/permissions/roles";
 
 export function PortalSidebar({ user }: { user: AuthzUser }) {
   const pathname = usePathname();
-  const visibleItems = portalNavItems
-    .filter((item) => !item.permission || hasPermission(user, item.permission))
-    .filter((item) => user.role !== "Operations" || operationsTrialNav.includes(item.label))
-    .map((item) => user.role === "Operations" && item.label === "Settings" ? { ...item, label: "Profile" } : item);
+  const visibleItems = getVisiblePortalNavItems(user);
 
   return (
     <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-white/10 bg-black/20 px-4 py-5 backdrop-blur-xl lg:block">
@@ -49,21 +46,3 @@ export function PortalSidebar({ user }: { user: AuthzUser }) {
     </aside>
   );
 }
-
-const operationsTrialNav = [
-  "Dashboard",
-  "Ghost Academy",
-  "My Tasks",
-  "Service Catalog",
-  "Pricing",
-  "CRM",
-  "Leads",
-  "Calendar",
-  "SOP Library",
-  "Daily Reports",
-  "Draft Communications",
-  "Waiting on Stephen",
-  "Notifications",
-  "Mission Feedback",
-  "Settings"
-];

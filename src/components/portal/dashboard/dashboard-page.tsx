@@ -13,7 +13,7 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
       <div className="mb-7 grid gap-5 xl:grid-cols-[1fr_360px] xl:items-start">
         <div>
           <Badge className="mb-3">Operations Portal</Badge>
-          <h2 className="text-4xl font-semibold tracking-normal">
+          <h2 className="text-3xl font-semibold tracking-normal sm:text-4xl">
             {snapshot.greeting}, {user.preferredName ?? user.name}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/56">
@@ -52,14 +52,14 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
                 <Link
                   key={task.id}
                   href={`/tasks/${task.id}`}
-                  className="grid grid-cols-[1fr_150px_110px] items-center gap-4 rounded-lg border border-white/10 bg-black/16 px-4 py-3 text-sm transition hover:bg-white/[0.055]"
+                  className="grid gap-3 rounded-lg border border-white/10 bg-black/16 px-4 py-3 text-sm transition hover:bg-white/[0.055] sm:grid-cols-[1fr_150px_110px] sm:items-center sm:gap-4"
                 >
                   <div>
                     <p className="font-medium">{task.title}</p>
                     <p className="mt-1 text-xs text-white/42">{task.owner}</p>
                   </div>
                   <Badge>{task.state}</Badge>
-                  <span className="text-right text-white/70">{task.priority}</span>
+                  <span className="text-white/70 sm:text-right">{task.priority}</span>
                 </Link>
               ))}
             </div>
@@ -109,14 +109,14 @@ export function DashboardPage({ user, snapshot }: { user: SessionUser; snapshot:
             <div className="mt-4 space-y-3">
               {snapshot.activity.length === 0 ? <EmptyState text={snapshot.scope.activityEmpty} /> : null}
               {snapshot.activity.map((event) => (
-                <div key={`${event.actor}-${event.time}-${event.target}`} className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/14 px-4 py-3">
-                  <div className="size-2 rounded-full bg-accent" />
+                <div key={`${event.actor}-${event.time}-${event.target}`} className="grid gap-2 rounded-lg border border-white/10 bg-black/14 px-4 py-3 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-3">
+                  <div className="hidden size-2 rounded-full bg-accent sm:block" />
                   <p className="min-w-0 flex-1 text-sm">
                     <span className="font-medium">{event.actor}</span>
                     <span className="text-white/50"> {event.action} </span>
                     <span>{event.target}</span>
                   </p>
-                  <span className="font-mono text-xs text-white/38">{event.time}</span>
+                  <span className="font-mono text-xs text-white/38 sm:text-right">{event.time}</span>
                 </div>
               ))}
             </div>

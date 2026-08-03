@@ -3,19 +3,23 @@ import type { SessionUser } from "@/server/permissions/authorize";
 import { logoutAction } from "@/server/auth/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MobileNavMenu } from "@/components/portal/layout/mobile-nav-menu";
 
 export function PortalHeader({ user, unreadNotifications }: { user: SessionUser; unreadNotifications: number }) {
   return (
-    <header className="sticky top-0 z-10 flex h-20 items-center justify-between border-b border-white/10 bg-[#08090d]/80 px-5 backdrop-blur-2xl lg:px-8">
-      <div className="flex h-11 w-full max-w-xl items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 text-white/50">
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-3 border-b border-white/10 bg-[#08090d]/80 px-4 backdrop-blur-2xl sm:h-20 lg:px-8">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <MobileNavMenu user={user} />
+        <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 text-white/50 lg:max-w-xl">
         <Search className="size-4" />
         <span className="truncate text-sm">Search clients, tasks, SOPs, files, leads...</span>
         <kbd className="ml-auto hidden rounded border border-white/10 px-2 py-1 font-mono text-[11px] text-white/45 sm:block">
           <Command className="mr-1 inline size-3" />K
         </kbd>
+        </div>
       </div>
 
-      <div className="ml-4 flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <Button asChild variant="outline" size="icon" aria-label="Notifications">
           <a href="/notifications" className="relative">
           <Bell className="size-4" />

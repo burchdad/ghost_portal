@@ -20,7 +20,7 @@ import {
   Wrench,
   Workflow
 } from "lucide-react";
-import type { Permission } from "@/server/permissions/roles";
+import { hasPermission, type AuthzUser, type Permission } from "@/server/permissions/roles";
 
 export const portalNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -48,3 +48,28 @@ export const portalNavItems = [
   { label: "Pricing Workshop", href: "/admin/pricing-workshop", icon: PackageOpen, permission: "pricing:manage" },
   { label: "Admin", href: "/admin/users", icon: MessageSquareText, permission: "admin:access" }
 ] satisfies Array<{ label: string; href: string; icon: typeof LayoutDashboard; permission?: Permission }>;
+
+export function getVisiblePortalNavItems(user: Pick<AuthzUser, "role">) {
+  return portalNavItems
+    .filter((item) => !item.permission || hasPermission(user as AuthzUser, item.permission))
+    .filter((item) => user.role !== "Operations" || operationsTrialNav.includes(item.label))
+    .map((item) => user.role === "Operations" && item.label === "Settings" ? { ...item, label: "Profile" } : item);
+}
+
+const operationsTrialNav = [
+  "Dashboard",
+  "Ghost Academy",
+  "My Tasks",
+  "Service Catalog",
+  "Pricing",
+  "CRM",
+  "Leads",
+  "Calendar",
+  "SOP Library",
+  "Daily Reports",
+  "Draft Communications",
+  "Waiting on Stephen",
+  "Notifications",
+  "Mission Feedback",
+  "Settings"
+];
