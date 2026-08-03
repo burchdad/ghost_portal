@@ -25,7 +25,7 @@ export const ghostAgentNetwork: GhostAgent[] = [
     purpose: "Growth loops, revenue strategy, offer direction, experiments, positioning, and expansion planning.",
     owns: ["Growth experiments", "Revenue strategy", "Offer refinement", "Weekly growth focus", "Expansion opportunities"],
     escalation: "Nova should bring Viktor into growth questions, but Stephen approves final strategy.",
-    href: "/crm"
+    href: "/viktor"
   },
   {
     id: "vega",

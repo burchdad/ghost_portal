@@ -16,6 +16,7 @@ import {
   ReceiptText,
   Settings,
   Target,
+  TrendingUp,
   Users,
   Wrench,
   Workflow
@@ -31,6 +32,7 @@ export const portalNavItems = [
   { label: "Clients", href: "/clients", icon: Users, permission: "clients:read:assigned" },
   { label: "Tools", href: "/tools", icon: Wrench, permission: "clients:read:all" },
   { label: "CRM", href: "/crm", icon: Handshake, permission: "crm:read" },
+  { label: "Viktor", href: "/viktor", icon: TrendingUp, permission: "crm:read" },
   { label: "Leads", href: "/leads", icon: Target, permission: "leads:read:assigned" },
   { label: "Projects", href: "/projects", icon: Workflow, permission: "projects:read:assigned" },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
@@ -63,6 +65,7 @@ const operationsTrialNav = [
   "Service Catalog",
   "Pricing",
   "CRM",
+  "Viktor",
   "Leads",
   "Calendar",
   "SOP Library",

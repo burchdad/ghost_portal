@@ -6,6 +6,7 @@ import { getPrisma } from "@/server/db/prisma";
 import { env } from "@/server/env/env";
 import { agentsForMessage, formatAgentNetworkForNova } from "@/server/nova/agent-network";
 import { hasPermission } from "@/server/permissions/roles";
+import { buildViktorGrowthContext, formatViktorContext } from "@/server/viktor/growth-context";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,9 @@ export async function POST(request: Request) {
 
   const messages = parsed.data.messages.slice(-8);
   const portalContext = await buildNovaContext(user);
-  const actions = buildNovaActions(messages.at(-1)?.content ?? "", portalContext);
+  const latestMessage = messages.at(-1)?.content ?? "";
+  const viktorContext = shouldIncludeViktor(latestMessage) ? await buildViktorGrowthContext(user) : null;
+  const actions = buildNovaActions(latestMessage, portalContext);
 
   if (!env.OPENAI_API_KEY) {
     return NextResponse.json({
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       model: process.env.NOVA_OPENAI_MODEL ?? "gpt-4o-mini",
       instructions: novaInstructions(user.role),
-      input: formatNovaInput(portalContext, messages),
+      input: formatNovaInput(portalContext, messages, viktorContext),
       temperature: 0.3,
       max_output_tokens: 900
     })
@@ -189,7 +192,7 @@ function novaInstructions(role: string) {
   ].join("\n");
 }
 
-function formatNovaInput(context: Awaited<ReturnType<typeof buildNovaContext>>, messages: Array<{ role: "user" | "assistant"; content: string }>) {
+function formatNovaInput(context: Awaited<ReturnType<typeof buildNovaContext>>, messages: Array<{ role: "user" | "assistant"; content: string }>, viktorContext: Awaited<ReturnType<typeof buildViktorGrowthContext>> | null) {
   return [
     "Portal context:",
     "Ghost agent network:",
@@ -208,6 +211,7 @@ function formatNovaInput(context: Awaited<ReturnType<typeof buildNovaContext>>, 
     `Daily reports: ${formatRecords(context.dailyReports)}`,
     `Files: ${formatRecords(context.files)}`,
     `Support: ${formatRecords(context.supportTickets)}`,
+    viktorContext ? ["", "Viktor growth specialist context:", formatViktorContext(viktorContext)].join("\n") : "",
     "",
     "Conversation:",
     ...messages.map((message) => `${message.role === "user" ? "User" : "Nova"}: ${message.content}`)
@@ -240,12 +244,12 @@ function buildNovaActions(message: string, context: Awaited<ReturnType<typeof bu
     context.clients.slice(0, 2).forEach(add);
   }
   if (mentions(lower, ["price", "pricing", "quote", "discount", "offer", "service"])) {
-    add({ label: "Viktor: offer strategy", href: "/pricing", detail: "Use Viktor's lane for growth strategy, offer positioning, and revenue opportunities." });
+    add({ label: "Viktor: offer strategy", href: "/viktor", detail: "Use Viktor's lane for growth strategy, offer positioning, and revenue opportunities." });
     add({ label: "Open pricing", href: "/pricing", detail: "Check approved service positioning and pricing rules." });
     context.pricing.slice(0, 2).forEach(add);
   }
   if (mentions(lower, ["growth", "grow", "revenue", "strategy", "experiment", "positioning"])) {
-    add({ label: "Viktor: growth strategy", href: "/crm", detail: "Review growth opportunities, pipeline movement, and expansion plays." });
+    add({ label: "Viktor: growth strategy", href: "/viktor", detail: "Review growth opportunities, pipeline movement, and expansion plays." });
     add({ label: "Open CRM board", href: "/crm", detail: "Review current revenue pipeline." });
   }
   if (mentions(lower, ["geo", "seo", "aeo", "visibility", "search", "ranking", "discoverability"])) {
@@ -287,6 +291,10 @@ function buildNovaActions(message: string, context: Awaited<ReturnType<typeof bu
 
 function formatRecords(records: Array<{ label: string; href: string; detail: string }>) {
   return records.length ? records.map((record) => `${record.label} (${record.href}) | ${record.detail}`).join("; ") : "none visible";
+}
+
+function shouldIncludeViktor(input: string) {
+  return mentions(input.toLowerCase(), ["viktor", "growth", "grow", "revenue", "strategy", "experiment", "positioning", "offer", "pipeline", "sales"]);
 }
 
 function mentions(input: string, words: string[]) {
