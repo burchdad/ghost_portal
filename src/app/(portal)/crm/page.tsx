@@ -76,64 +76,70 @@ export default async function CrmPage() {
         </Card>
       ) : null}
 
-      {ghostCrm.configured && ghostCrm.ok ? (
-        <div className="mb-6">
-          <h3 className="mb-3 text-lg font-semibold">GhostCRM Core pipeline</h3>
-          <SimpleTable
-            columns={["Lead", "Company", "Stage", "Score", "Deal", "Source", "Updated"]}
-            empty="GhostCRM Core has no leads yet."
-            rows={ghostCrm.leads.map((lead) => [
-              lead.title,
-              lead.companyName || "Unknown",
-              <Badge key="stage">{stageLabel(lead.stage)}</Badge>,
-              lead.leadScore || "Not scored",
-              lead.dealAmount ? formatMoney(lead.dealAmount) : lead.dealStage || "No deal",
-              lead.source,
-              lead.updatedAt ? new Date(lead.updatedAt).toLocaleString("en-US") : "Unknown"
-            ])}
-          />
-        </div>
-      ) : null}
-
       <CrmKanbanBoard leads={boardLeads} canSync={canSync} />
 
-      <div>
-        <h3 className="mb-3 text-lg font-semibold">Ops Portal CRM bridge</h3>
-        <SimpleTable
-          columns={["Lead", "Contact", "Stage", "Interest", "Caller", "Mission Control", "Last call", "GhostCRM"]}
-          empty="No Ops Portal leads are visible to you yet."
-          rows={opsLeads.map((lead) => {
-            const lastCall = lead.callActivities[0];
-            const synced = lead.ghostCrmStatus === "Synced" || syncedOpsLeadIds.has(lead.id);
-            const failed = lead.ghostCrmStatus === "Sync Failed";
-            return [
-              <Link key="lead" href={`/leads/${lead.id}`} className="font-medium text-white hover:text-accent">{lead.company}</Link>,
-              lead.contactName ?? lead.contactEmail ?? lead.contactPhone ?? "Unknown",
-              <Badge key="stage">{lead.stage}</Badge>,
-              interestLabel(lead.interestLevel),
-              lead.assignedUser?.preferredName ?? lead.assignedUser?.name ?? "Unassigned",
-              lead.missionControlStatus,
-              lastCall?.outcome ?? lead.callResult ?? "No calls",
-              synced ? <Badge key="synced">Synced</Badge> : failed ? (
-                <div key="failed" className="space-y-2">
-                  <Badge>Sync Failed</Badge>
-                  {lead.ghostCrmSyncError ? <p className="text-xs leading-5 text-danger">{lead.ghostCrmSyncError}</p> : null}
-                  {canSync ? (
-                    <form action={syncLeadToGhostCrmAction}>
+      <div className="space-y-3">
+        {ghostCrm.configured && ghostCrm.ok ? (
+          <details className="rounded-lg border border-white/10 bg-white/[0.03]">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-white/78">GhostCRM Core pipeline details</summary>
+            <div className="border-t border-white/10 p-3">
+              <SimpleTable
+                columns={["Lead", "Company", "Stage", "Score", "Deal", "Source", "Updated"]}
+                empty="GhostCRM Core has no leads yet."
+                rows={ghostCrm.leads.map((lead) => [
+                  lead.title,
+                  lead.companyName || "Unknown",
+                  <Badge key="stage">{stageLabel(lead.stage)}</Badge>,
+                  lead.leadScore || "Not scored",
+                  lead.dealAmount ? formatMoney(lead.dealAmount) : lead.dealStage || "No deal",
+                  lead.source,
+                  lead.updatedAt ? new Date(lead.updatedAt).toLocaleString("en-US") : "Unknown"
+                ])}
+              />
+            </div>
+          </details>
+        ) : null}
+
+        <details className="rounded-lg border border-white/10 bg-white/[0.03]">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-white/78">Ops Portal CRM bridge details</summary>
+          <div className="border-t border-white/10 p-3">
+            <SimpleTable
+              columns={["Lead", "Contact", "Stage", "Interest", "Caller", "Mission Control", "Last call", "GhostCRM"]}
+              empty="No Ops Portal leads are visible to you yet."
+              rows={opsLeads.map((lead) => {
+                const lastCall = lead.callActivities[0];
+                const synced = lead.ghostCrmStatus === "Synced" || syncedOpsLeadIds.has(lead.id);
+                const failed = lead.ghostCrmStatus === "Sync Failed";
+                return [
+                  <Link key="lead" href={`/leads/${lead.id}`} className="font-medium text-white hover:text-accent">{lead.company}</Link>,
+                  lead.contactName ?? lead.contactEmail ?? lead.contactPhone ?? "Unknown",
+                  <Badge key="stage">{lead.stage}</Badge>,
+                  interestLabel(lead.interestLevel),
+                  lead.assignedUser?.preferredName ?? lead.assignedUser?.name ?? "Unassigned",
+                  lead.missionControlStatus,
+                  lastCall?.outcome ?? lead.callResult ?? "No calls",
+                  synced ? <Badge key="synced">Synced</Badge> : failed ? (
+                    <div key="failed" className="space-y-2">
+                      <Badge>Sync Failed</Badge>
+                      {lead.ghostCrmSyncError ? <p className="text-xs leading-5 text-danger">{lead.ghostCrmSyncError}</p> : null}
+                      {canSync ? (
+                        <form action={syncLeadToGhostCrmAction}>
+                          <input type="hidden" name="leadId" value={lead.id} />
+                          <Button size="sm" variant="accent">Retry</Button>
+                        </form>
+                      ) : null}
+                    </div>
+                  ) : canSync ? (
+                    <form key="form" action={syncLeadToGhostCrmAction}>
                       <input type="hidden" name="leadId" value={lead.id} />
-                      <Button size="sm" variant="accent">Retry</Button>
+                      <Button size="sm" variant="accent">Sync</Button>
                     </form>
-                  ) : null}
-                </div>
-              ) : canSync ? (
-                <form key="form" action={syncLeadToGhostCrmAction}>
-                  <input type="hidden" name="leadId" value={lead.id} />
-                  <Button size="sm" variant="accent">Sync</Button>
-                </form>
-              ) : "Not synced"
-            ];
-          })}
-        />
+                  ) : "Not synced"
+                ];
+              })}
+            />
+          </div>
+        </details>
       </div>
     </PageSection>
   );

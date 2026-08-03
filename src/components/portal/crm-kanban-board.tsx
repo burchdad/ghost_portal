@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ExternalLink, GripVertical, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock3, DollarSign, ExternalLink, GripVertical, MoreHorizontal, Plus, RefreshCw, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,18 +37,18 @@ export type CrmKanbanStage =
   | "Nurture"
   | "DoNotContact";
 
-const columns: Array<{ id: CrmKanbanStage; label: string; tone: string }> = [
-  { id: "New", label: "New", tone: "border-sky-400/25 bg-sky-400/[0.06]" },
-  { id: "ReadyToCall", label: "Ready", tone: "border-cyan-300/25 bg-cyan-300/[0.06]" },
-  { id: "Attempted", label: "Attempted", tone: "border-zinc-300/20 bg-zinc-300/[0.05]" },
-  { id: "Connected", label: "Connected", tone: "border-amber-300/25 bg-amber-300/[0.06]" },
-  { id: "Qualified", label: "Qualified", tone: "border-emerald-300/25 bg-emerald-300/[0.06]" },
-  { id: "Discovery", label: "Discovery", tone: "border-teal-300/25 bg-teal-300/[0.06]" },
-  { id: "Proposal", label: "Proposal", tone: "border-fuchsia-300/25 bg-fuchsia-300/[0.06]" },
-  { id: "Won", label: "Won", tone: "border-green-300/25 bg-green-300/[0.06]" },
-  { id: "Lost", label: "Lost", tone: "border-red-300/25 bg-red-300/[0.06]" },
-  { id: "Nurture", label: "Nurture", tone: "border-indigo-300/25 bg-indigo-300/[0.06]" },
-  { id: "DoNotContact", label: "DNC", tone: "border-orange-300/25 bg-orange-300/[0.06]" }
+const columns: Array<{ id: CrmKanbanStage; label: string; accent: string }> = [
+  { id: "New", label: "New", accent: "bg-sky-300" },
+  { id: "ReadyToCall", label: "Ready", accent: "bg-cyan-300" },
+  { id: "Attempted", label: "Attempted", accent: "bg-zinc-300" },
+  { id: "Connected", label: "Connected", accent: "bg-amber-300" },
+  { id: "Qualified", label: "Qualified", accent: "bg-emerald-300" },
+  { id: "Discovery", label: "Discovery", accent: "bg-teal-300" },
+  { id: "Proposal", label: "Proposal", accent: "bg-fuchsia-300" },
+  { id: "Won", label: "Won", accent: "bg-green-300" },
+  { id: "Lost", label: "Lost", accent: "bg-red-300" },
+  { id: "Nurture", label: "Nurture", accent: "bg-indigo-300" },
+  { id: "DoNotContact", label: "DNC", accent: "bg-orange-300" }
 ];
 
 export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; canSync: boolean }) {
@@ -94,16 +94,16 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
   }
 
   return (
-    <section className="mb-6">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+    <section className="mb-6 rounded-lg border border-white/10 bg-black/18 p-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
         <div>
-          <h3 className="text-lg font-semibold">CRM pipeline board</h3>
-          <p className="mt-1 text-sm text-white/54">Drag leads between stages or use card arrows to update the shared CRM pipeline.</p>
+          <h3 className="text-base font-semibold">CRM pipeline board</h3>
+          <p className="mt-1 text-sm text-white/50">Drag cards across lists or use the arrow controls on each card.</p>
         </div>
         {error ? <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p> : null}
       </div>
-      <div className="overflow-x-auto pb-2">
-        <div className="grid min-w-[1640px] grid-cols-11 gap-3">
+      <div className="overflow-x-auto pb-3">
+        <div className="flex min-h-[560px] w-max items-start gap-3 pr-3">
           {grouped.map((column, columnIndex) => (
             <div
               key={column.id}
@@ -120,19 +120,21 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
                 if (leadId) moveLead(leadId, column.id);
               }}
               className={cn(
-                "min-h-[460px] rounded-lg border p-3 transition",
-                column.tone,
-                activeStage === column.id ? "ring-2 ring-accent/70" : ""
+                "flex max-h-[calc(100vh-260px)] min-h-[220px] w-[272px] shrink-0 flex-col rounded-lg border border-white/10 bg-[#16171c] p-2 shadow-sm transition",
+                activeStage === column.id ? "ring-2 ring-accent/70" : "hover:border-white/16"
               )}
             >
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold">{column.label}</p>
-                  <p className="text-xs text-white/42">{column.leads.length} leads</p>
+              <div className="flex h-10 items-center justify-between gap-2 px-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={cn("h-2.5 w-8 rounded-full", column.accent)} aria-hidden="true" />
+                  <h4 className="truncate text-sm font-semibold">{column.label}</h4>
+                  <span className="text-sm text-white/48">{column.leads.length}</span>
                 </div>
-                <Badge>{column.leads.reduce((sum, lead) => sum + numericMoney(lead.value), 0) ? formatColumnValue(column.leads) : "Open"}</Badge>
+                <Button type="button" size="icon" variant="ghost" className="size-8" aria-label={`${column.label} list options`}>
+                  <MoreHorizontal className="size-4" aria-hidden="true" />
+                </Button>
               </div>
-              <div className="space-y-3">
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1 pb-2">
                 {column.leads.length ? column.leads.map((lead) => (
                   <article
                     key={lead.id}
@@ -146,64 +148,56 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
                       setActiveStage(null);
                     }}
                     className={cn(
-                      "rounded-lg border border-white/10 bg-black/24 p-3 shadow-sm transition hover:border-white/20",
+                      "rounded-lg border border-white/10 bg-[#202127] p-2.5 shadow-sm transition hover:border-white/20 hover:bg-[#25262d]",
                       pendingLeadId === lead.id ? "opacity-60" : ""
                     )}
                   >
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      <span className={cn("h-2 w-10 rounded-full", column.accent)} aria-hidden="true" />
+                      {lead.ghostCrmStatus === "Synced" ? <span className="h-2 w-10 rounded-full bg-accent" aria-hidden="true" /> : null}
+                      {lead.ghostCrmStatus === "Sync Failed" ? <span className="h-2 w-10 rounded-full bg-danger" aria-hidden="true" /> : null}
+                    </div>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <Link href={lead.href} className="block truncate text-sm font-semibold text-white hover:text-accent">
+                        <Link href={lead.href} className="block text-sm font-semibold leading-5 text-white hover:text-accent">
                           {lead.company}
                         </Link>
-                        <p className="mt-1 truncate text-xs text-white/48">{lead.contact}</p>
+                        <p className="mt-1 truncate text-xs text-white/52">{lead.contact}</p>
                       </div>
-                      <GripVertical className="mt-0.5 size-4 shrink-0 text-white/36" aria-hidden="true" />
+                      <GripVertical className="mt-0.5 size-4 shrink-0 cursor-grab text-white/36" aria-hidden="true" />
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge>{lead.interest}</Badge>
-                      <Badge>{lead.value}</Badge>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/62">
+                      <span className="inline-flex items-center gap-1"><UserRound className="size-3.5" aria-hidden="true" />{lead.assignedTo}</span>
+                      <span className="inline-flex items-center gap-1"><DollarSign className="size-3.5" aria-hidden="true" />{lead.value.replace("$", "")}</span>
+                      <span className="inline-flex min-w-0 items-center gap-1"><Clock3 className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{lead.lastActivity}</span></span>
                     </div>
-                    <dl className="mt-3 space-y-1 text-xs text-white/50">
-                      <div className="flex justify-between gap-2">
-                        <dt>Owner</dt>
-                        <dd className="truncate text-white/72">{lead.assignedTo}</dd>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <dt>Source</dt>
-                        <dd className="truncate text-white/72">{lead.source}</dd>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <dt>Last</dt>
-                        <dd className="truncate text-white/72">{lead.lastActivity}</dd>
-                      </div>
-                    </dl>
-                    <div className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-2 py-2 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-white/48">GhostCRM</span>
-                        <span className={cn("font-medium", lead.ghostCrmStatus === "Sync Failed" ? "text-danger" : lead.ghostCrmStatus === "Synced" ? "text-accent" : "text-white/72")}>
-                          {lead.ghostCrmStatus}
-                        </span>
-                      </div>
-                      {lead.ghostCrmSyncError ? <p className="mt-1 line-clamp-2 text-danger">{lead.ghostCrmSyncError}</p> : null}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Badge className="h-6 px-2">{lead.interest}</Badge>
+                      <Badge className={cn("h-6 px-2", lead.ghostCrmStatus === "Synced" ? "border-accent/30 text-accent" : lead.ghostCrmStatus === "Sync Failed" ? "border-danger/30 text-danger" : "")}>
+                        {lead.ghostCrmStatus}
+                      </Badge>
                     </div>
-                    <div className="mt-3 flex items-center justify-between gap-2">
+                    {lead.ghostCrmSyncError ? <p className="mt-2 line-clamp-2 text-xs text-danger">{lead.ghostCrmSyncError}</p> : null}
+                    <div className="mt-3 flex items-center justify-between gap-1 border-t border-white/8 pt-2">
                       <Button
                         type="button"
                         size="icon"
                         variant="outline"
+                        className="size-8"
                         aria-label="Move lead left"
                         disabled={columnIndex === 0 || pendingLeadId === lead.id}
                         onClick={() => moveLead(lead.id, columns[columnIndex - 1].id)}
                       >
                         <ArrowLeft className="size-4" aria-hidden="true" />
                       </Button>
-                      <Button asChild size="icon" variant="ghost" aria-label="Open lead">
+                      <Button asChild size="icon" variant="ghost" className="size-8" aria-label="Open lead">
                         <Link href={lead.href}><ExternalLink className="size-4" aria-hidden="true" /></Link>
                       </Button>
                       <Button
                         type="button"
                         size="icon"
                         variant="outline"
+                        className="size-8"
                         aria-label={canSync ? "Move lead right and sync" : "Move lead right"}
                         disabled={columnIndex === columns.length - 1 || pendingLeadId === lead.id}
                         onClick={() => moveLead(lead.id, columns[columnIndex + 1].id)}
@@ -213,22 +207,16 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
                     </div>
                   </article>
                 )) : (
-                  <div className="rounded-lg border border-dashed border-white/12 px-3 py-6 text-center text-sm text-white/38">No leads</div>
+                  <div className="rounded-lg border border-dashed border-white/12 bg-black/12 px-3 py-6 text-center text-sm text-white/38">No leads</div>
                 )}
               </div>
+              <Button asChild variant="ghost" className="mt-1 h-9 justify-start px-2 text-white/62 hover:text-white">
+                <Link href="/leads"><Plus className="size-4" aria-hidden="true" /> Add a card</Link>
+              </Button>
             </div>
           ))}
         </div>
       </div>
     </section>
   );
-}
-
-function numericMoney(value: string) {
-  return Number(value.replace(/[^0-9.-]/g, "")) || 0;
-}
-
-function formatColumnValue(leads: CrmKanbanLead[]) {
-  const total = leads.reduce((sum, lead) => sum + numericMoney(lead.value), 0);
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(total);
 }
