@@ -37,6 +37,13 @@ const smokeTestClientNames = new Set([
   "codex geo smoke co"
 ]);
 
+const internalToolNames = new Set([
+  "ceo",
+  "aspiring investments llc",
+  "cleaning service",
+  "alpha ghost"
+]);
+
 export function missionClientRouteId(id: string) {
   return `mission-${encodeURIComponent(id)}`;
 }
@@ -48,8 +55,24 @@ export function parseMissionClientRouteId(routeId: string) {
 }
 
 export async function getMissionControlClients() {
+  const result = await getMissionControlClientDirectory();
+  return {
+    ...result,
+    clients: result.clients
+  };
+}
+
+export async function getMissionControlTools() {
+  const result = await getMissionControlClientDirectory();
+  return {
+    ...result,
+    clients: result.tools
+  };
+}
+
+async function getMissionControlClientDirectory() {
   const url = missionControlClientsUrl();
-  if (!url) return { ok: false as const, reason: "not_configured" as const, clients: [] };
+  if (!url) return { ok: false as const, reason: "not_configured" as const, clients: [], tools: [] };
 
   try {
     const response = await fetch(url, {
@@ -57,16 +80,19 @@ export async function getMissionControlClients() {
       headers: missionControlHeaders()
     });
     if (!response.ok) {
-      return { ok: false as const, reason: `Mission Control returned ${response.status}`, clients: [] };
+      return { ok: false as const, reason: `Mission Control returned ${response.status}`, clients: [], tools: [] };
     }
 
     const body = await response.json() as MissionControlClientsResponse;
+    const records = (body.clients ?? [])
+      .map(normalizeMissionControlClient)
+      .filter(isMissionControlClientRecord)
+      .filter((client) => !isSmokeTestClient(client));
+
     return {
       ok: true as const,
-      clients: (body.clients ?? [])
-        .map(normalizeMissionControlClient)
-        .filter(isMissionControlClientRecord)
-        .filter((client) => !isSmokeTestClient(client)),
+      clients: records.filter((client) => !isInternalMissionControlTool(client)),
+      tools: records.filter(isInternalMissionControlTool),
       dataHealth: body.dataHealth,
       storage: body.storage
     };
@@ -74,7 +100,8 @@ export async function getMissionControlClients() {
     return {
       ok: false as const,
       reason: error instanceof Error ? error.message : "Mission Control clients unavailable",
-      clients: []
+      clients: [],
+      tools: []
     };
   }
 }
@@ -146,6 +173,11 @@ function normalizeMissionControlClient(value: unknown): MissionControlClientReco
 function isSmokeTestClient(client: MissionControlClientRecord) {
   const name = client.clientName.toLowerCase().trim();
   return smokeTestClientNames.has(name);
+}
+
+export function isInternalMissionControlTool(client: MissionControlClientRecord) {
+  const name = client.clientName.toLowerCase().trim();
+  return internalToolNames.has(name);
 }
 
 function isMissionControlClientRecord(client: MissionControlClientRecord | null): client is MissionControlClientRecord {

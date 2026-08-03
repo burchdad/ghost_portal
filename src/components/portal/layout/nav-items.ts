@@ -17,6 +17,7 @@ import {
   Settings,
   Target,
   Users,
+  Wrench,
   Workflow
 } from "lucide-react";
 import type { Permission } from "@/server/permissions/roles";
@@ -28,6 +29,7 @@ export const portalNavItems = [
   { label: "Service Catalog", href: "/services", icon: PackageOpen, permission: "pricing:read" },
   { label: "Pricing", href: "/pricing", icon: ReceiptText, permission: "pricing:read" },
   { label: "Clients", href: "/clients", icon: Users, permission: "clients:read:assigned" },
+  { label: "Tools", href: "/tools", icon: Wrench, permission: "clients:read:all" },
   { label: "CRM", href: "/crm", icon: Handshake, permission: "crm:read" },
   { label: "Leads", href: "/leads", icon: Target, permission: "leads:read:assigned" },
   { label: "Projects", href: "/projects", icon: Workflow, permission: "projects:read:assigned" },

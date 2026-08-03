@@ -33,14 +33,23 @@ describe("Mission Control clients data adapter", () => {
             websiteUrl: "https://www.ghostai.solutions",
             repo: "",
             services: []
+          },
+          {
+            id: "alpha-ghost",
+            clientName: "Alpha Ghost",
+            stage: "paused-archived",
+            websiteUrl: "https://www.alphaghost.org",
+            repo: "",
+            services: ["website-build", "web-helper-care", "software-tool"]
           }
         ]
       })
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { getMissionControlClients, missionClientRouteId, parseMissionClientRouteId } = await import("@/server/data/mission-control-clients");
+    const { getMissionControlClients, getMissionControlTools, missionClientRouteId, parseMissionClientRouteId } = await import("@/server/data/mission-control-clients");
     const result = await getMissionControlClients();
+    const tools = await getMissionControlTools();
 
     expect(fetchMock).toHaveBeenCalledWith("https://mission.example.test/mission/clients?refresh=true", expect.objectContaining({
       cache: "no-store",
@@ -64,6 +73,17 @@ describe("Mission Control clients data adapter", () => {
       ]
     });
     expect(result.clients).toHaveLength(1);
+    expect(tools).toMatchObject({
+      ok: true,
+      clients: [
+        {
+          id: "alpha-ghost",
+          clientName: "Alpha Ghost",
+          stage: "paused-archived",
+          source: "mission-control"
+        }
+      ]
+    });
     expect(parseMissionClientRouteId(missionClientRouteId("ghost-ai-solutions"))).toBe("ghost-ai-solutions");
   });
 });
