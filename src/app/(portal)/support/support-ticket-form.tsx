@@ -38,7 +38,7 @@ export function SupportTicketForm({
       </label>
       <label className="text-sm font-medium">
         Page or feature
-        <input name="pageOrFeature" placeholder="/tasks, Nova drawer, daily report submit..." className="mt-2 h-10 w-full rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
+        <input name="pageOrFeature" placeholder="/tasks, Nova assistant, daily report submit..." className="mt-2 h-10 w-full rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
       </label>
       <label className="text-sm font-medium">
         What happened?
