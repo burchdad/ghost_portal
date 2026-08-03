@@ -29,7 +29,6 @@ export default async function ClientsPage() {
     : canReadAllClients
       ? "Mission Control clients are unavailable here, so this view is showing Ops Portal client records."
       : "Operations users only see Ops Portal clients explicitly assigned to them.";
-
   return (
     <PageSection eyebrow="CRM" title="Clients" description={description}>
       {missionControl && !missionControl.ok ? (
@@ -38,6 +37,23 @@ export default async function ClientsPage() {
           <p className="mt-2 text-sm leading-6 text-white/58">{missionControl.reason}</p>
         </Card>
       ) : null}
+      <div className="mb-5 grid gap-3 md:grid-cols-4">
+        {missionControl?.ok ? (
+          <>
+            <Metric label="Canonical clients" value={missionControl.clients.length} />
+            <Metric label="Active delivery" value={missionControl.clients.filter((client) => !client.stage.includes("archived") && client.stage !== "lead").length} />
+            <Metric label="Web helper care" value={missionControl.clients.filter((client) => client.services.includes("web-helper-care")).length} />
+            <Metric label="Missing website" value={missionControl.clients.filter((client) => !client.websiteUrl).length} />
+          </>
+        ) : (
+          <>
+            <Metric label="Visible clients" value={localClients.length} />
+            <Metric label="High risk" value={localClients.filter((client) => client.riskStatus === "High").length} />
+            <Metric label="Prospects" value={localClients.filter((client) => client.status === "Prospect").length} />
+            <Metric label="Follow-ups set" value={localClients.filter((client) => client.nextFollowUp).length} />
+          </>
+        )}
+      </div>
       <SimpleTable
         columns={missionControl?.ok ? ["Company", "Stage", "Services", "Website"] : ["Company", "Status", "Risk", "Next follow-up"]}
         empty="No clients are assigned to you yet."
@@ -58,6 +74,15 @@ export default async function ClientsPage() {
         ])}
       />
     </PageSection>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <Card>
+      <p className="text-xs text-white/42">{label}</p>
+      <p className="mt-2 text-2xl font-semibold">{value}</p>
+    </Card>
   );
 }
 

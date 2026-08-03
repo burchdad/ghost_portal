@@ -13,17 +13,18 @@ import { QuickAddLeadForm } from "./quick-add-lead-form";
 const leadSources = ["Manual Cold Call", "Vega", "Referral", "Facebook", "Networking", "Website Inquiry", "Email", "Partner", "Existing Relationship", "Other"];
 const filters = ["New", "Ready to Call", "No Answer", "Follow-Up Due", "Interested", "Sales-Ready", "Qualified", "Sent to Mission Control", "Returned for Information", "Meeting Booked", "Do Not Contact"];
 
-export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ filter?: string; q?: string }> }) {
   const user = await requireUser();
   const params = await searchParams;
   const filter = params.filter ?? "New";
+  const query = (params.q ?? "").trim();
   const canCreate = hasPermission(user, "leads:manage") || hasPermission(user, "leads:update:assigned");
   const baseWhere: Prisma.LeadWhereInput = user.role === "Founder"
     ? { archivedAt: null }
     : { archivedAt: null, access: { some: { userId: user.id } } };
   const [leads, metricLeads, users] = await Promise.all([
     getPrisma().lead.findMany({
-      where: { ...baseWhere, ...whereForFilter(filter) },
+      where: { ...baseWhere, ...whereForFilter(filter), ...whereForLeadSearch(query) },
       include: {
         assignedUser: true,
         callActivities: { orderBy: { occurredAt: "desc" }, take: 1 }
@@ -41,6 +42,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     getPrisma().user.findMany({ where: { status: "Active", role: { name: { in: ["Founder", "Operations", "Sales"] } } }, include: { role: true }, orderBy: { name: "asc" } })
   ]);
   const sourceMetrics = buildSourceMetrics(metricLeads);
+  const queueMetrics = buildQueueMetrics(metricLeads);
 
   return (
     <PageSection eyebrow="Cold-call workspace" title="Leads" description="Create raw leads fast, log outreach, enrich progressively, and hand off only when the lead is ready.">
@@ -51,10 +53,23 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         </Card>
       ) : null}
 
+      <div className="mb-5 grid gap-3 md:grid-cols-4">
+        <QueueMetric label="Ready to call" value={queueMetrics.ready} tone="accent" />
+        <QueueMetric label="Follow-up due" value={queueMetrics.followUpDue} tone="warning" />
+        <QueueMetric label="Interested" value={queueMetrics.interested} tone="accent" />
+        <QueueMetric label="Needs Stephen" value={queueMetrics.needsStephen} tone="danger" />
+      </div>
+
+      <form className="mb-5 grid gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-4 md:grid-cols-[minmax(0,1fr)_auto]">
+        <input type="hidden" name="filter" value={filter} />
+        <input name="q" defaultValue={query} placeholder="Search visible leads by company, contact, phone, or email" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm outline-none focus:border-accent" />
+        <Button variant="outline">Search Leads</Button>
+      </form>
+
       <div className="mb-5 flex flex-wrap gap-2">
         {filters.map((item) => (
           <Button key={item} asChild size="sm" variant={filter === item ? "accent" : "outline"}>
-            <Link href={`/leads?filter=${encodeURIComponent(item)}`}>{item}</Link>
+            <Link href={`/leads?filter=${encodeURIComponent(item)}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>{item}</Link>
           </Button>
         ))}
       </div>
@@ -107,6 +122,19 @@ function whereForFilter(filter: string): Prisma.LeadWhereInput {
   return { stage: { in: ["New", "ReadyToCall"] } };
 }
 
+function whereForLeadSearch(query: string): Prisma.LeadWhereInput {
+  if (query.length < 2) return {};
+  return {
+    OR: [
+      { company: { contains: query, mode: "insensitive" } },
+      { contactName: { contains: query, mode: "insensitive" } },
+      { contactEmail: { contains: query, mode: "insensitive" } },
+      { contactPhone: { contains: query, mode: "insensitive" } },
+      { website: { contains: query, mode: "insensitive" } }
+    ]
+  };
+}
+
 function buildSourceMetrics(leads: Array<{ leadSource: string | null; callActivities: Array<{ outcome: string }>; handoffStatus: string; stage: string; interestLevel: string }>) {
   const map = new Map<string, { source: string; leads: number; calls: number; interested: number; handoffs: number }>();
   for (const source of leadSources) map.set(source, { source, leads: 0, calls: 0, interested: 0, handoffs: 0 });
@@ -120,6 +148,26 @@ function buildSourceMetrics(leads: Array<{ leadSource: string | null; callActivi
     map.set(key, metric);
   }
   return [...map.values()].filter((metric) => metric.leads > 0 || metric.source === "Manual Cold Call");
+}
+
+function buildQueueMetrics(leads: Array<{ stage: string; interestLevel: string; followUpDate: Date | null; doNotContact: boolean; needsStephenReview: boolean }>) {
+  const now = new Date();
+  return {
+    ready: leads.filter((lead) => ["New", "ReadyToCall"].includes(lead.stage) && !lead.doNotContact).length,
+    followUpDue: leads.filter((lead) => lead.followUpDate && lead.followUpDate <= now && !lead.doNotContact).length,
+    interested: leads.filter((lead) => ["Interested", "StrongInterest", "MeetingRequested"].includes(lead.interestLevel) || lead.stage === "Interested").length,
+    needsStephen: leads.filter((lead) => lead.needsStephenReview).length
+  };
+}
+
+function QueueMetric({ label, value, tone }: { label: string; value: number; tone: "accent" | "warning" | "danger" }) {
+  const toneClass = tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-accent";
+  return (
+    <Card>
+      <p className="text-xs text-white/42">{label}</p>
+      <p className={`mt-2 text-2xl font-semibold ${toneClass}`}>{value}</p>
+    </Card>
+  );
 }
 
 function interestLabel(value: string) {

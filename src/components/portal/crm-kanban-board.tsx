@@ -69,6 +69,11 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
       leads: localLeads.filter((lead) => lead.stage === column.id)
     }));
   }, [localLeads]);
+  const boardStats = useMemo(() => ({
+    total: localLeads.length,
+    needsSync: localLeads.filter((lead) => lead.ghostCrmStatus !== "Synced").length,
+    hot: localLeads.filter((lead) => ["Interested", "Strong Interest", "Meeting Requested"].includes(lead.interest)).length
+  }), [localLeads]);
 
   function moveLead(leadId: string, stage: CrmKanbanStage) {
     const current = localLeads.find((lead) => lead.id === leadId);
@@ -99,6 +104,11 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
         <div>
           <h3 className="text-base font-semibold">CRM pipeline board</h3>
           <p className="mt-1 text-sm text-white/50">Drag cards across lists or use the arrow controls on each card.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs text-white/56">
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">{boardStats.total} leads</span>
+          <span className="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-warning">{boardStats.needsSync} need sync</span>
+          <span className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-accent">{boardStats.hot} warm</span>
         </div>
         {error ? <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p> : null}
       </div>
@@ -149,6 +159,7 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
                     }}
                     className={cn(
                       "rounded-lg border border-white/10 bg-[#202127] p-2.5 shadow-sm transition hover:border-white/20 hover:bg-[#25262d]",
+                      lead.ghostCrmStatus !== "Synced" ? "border-warning/20" : "",
                       pendingLeadId === lead.id ? "opacity-60" : ""
                     )}
                   >
@@ -173,9 +184,11 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Badge className="h-6 px-2">{lead.interest}</Badge>
+                      <Badge className="h-6 px-2">{lead.source}</Badge>
                       <Badge className={cn("h-6 px-2", lead.ghostCrmStatus === "Synced" ? "border-accent/30 text-accent" : lead.ghostCrmStatus === "Sync Failed" ? "border-danger/30 text-danger" : "")}>
                         {lead.ghostCrmStatus}
                       </Badge>
+                      {lead.missionControlStatus !== "Not Sent" ? <Badge className="h-6 border-accent/30 px-2 text-accent">{lead.missionControlStatus}</Badge> : null}
                     </div>
                     {lead.ghostCrmSyncError ? <p className="mt-2 line-clamp-2 text-xs text-danger">{lead.ghostCrmSyncError}</p> : null}
                     <div className="mt-3 flex items-center justify-between gap-1 border-t border-white/8 pt-2">

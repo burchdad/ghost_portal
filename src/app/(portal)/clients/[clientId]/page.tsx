@@ -23,6 +23,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
     const client = result.client;
     return (
       <PageSection eyebrow="Mission Control Client" title={client.clientName} description="This record is read directly from Ghost Mission Control. Ops Portal-specific notes and access rules stay separate.">
+        <div className="mb-5 grid gap-3 md:grid-cols-4">
+          <StatusCard label="Stage" value={client.stage} />
+          <StatusCard label="Relationship" value={client.relationshipType || "Not set"} />
+          <StatusCard label="Services" value={String(client.services.length || client.plannedServices.length)} />
+          <StatusCard label="Systems" value={systemCount(client)} />
+        </div>
         <div className="grid gap-5 lg:grid-cols-2">
           <Card>
             <h3 className="font-semibold">Client profile</h3>
@@ -44,6 +50,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
               <Info label="Vercel" value={client.vercelUrl ? <ExternalLink href={client.vercelUrl} /> : "Not set"} />
               <Info label="Railway" value={client.railwayUrl ? <ExternalLink href={client.railwayUrl} /> : "Not set"} />
               <Info label="Support" value={client.supportUrl ? <ExternalLink href={client.supportUrl} label="Mission Control support link" /> : "Not set"} />
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {client.websiteUrl ? <Button asChild size="sm" variant="accent"><a href={client.websiteUrl} target="_blank" rel="noreferrer">Open website</a></Button> : null}
+              {client.githubUrl ? <Button asChild size="sm" variant="outline"><a href={client.githubUrl} target="_blank" rel="noreferrer">Open repo</a></Button> : null}
+              {client.supportUrl ? <Button asChild size="sm" variant="outline"><a href={client.supportUrl} target="_blank" rel="noreferrer">Support</a></Button> : null}
             </div>
           </Card>
         </div>
@@ -87,6 +98,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
 
   return (
     <PageSection eyebrow="Client" title={visibleClient.company} description="Client details are minimized according to role and record access.">
+      <div className="mb-5 grid gap-3 md:grid-cols-4">
+        <StatusCard label="Status" value={visibleClient.status} />
+        <StatusCard label="Risk" value={visibleClient.riskStatus} />
+        <StatusCard label="Contacts" value={String(client.contacts.length)} />
+        <StatusCard label="Open tasks" value={String(client.tasks.filter((task) => !task.archivedAt).length)} />
+      </div>
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <h3 className="font-semibold">Operational notes</h3>
@@ -129,6 +146,19 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
       ) : null}
     </PageSection>
   );
+}
+
+function StatusCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <p className="text-xs text-white/42">{label}</p>
+      <p className="mt-2 text-lg font-semibold text-white">{value}</p>
+    </Card>
+  );
+}
+
+function systemCount(client: { websiteUrl: string; repo: string; githubUrl: string; railwayUrl: string; vercelUrl: string; supportUrl: string }) {
+  return String([client.websiteUrl, client.repo || client.githubUrl, client.railwayUrl, client.vercelUrl, client.supportUrl].filter(Boolean).length);
 }
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {

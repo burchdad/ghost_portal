@@ -21,6 +21,14 @@ export default async function ToolsPage() {
           <p className="mt-2 text-sm leading-6 text-white/58">{missionControl.reason}</p>
         </Card>
       ) : null}
+      {missionControl.ok ? (
+        <div className="mb-5 grid gap-3 md:grid-cols-4">
+          <Metric label="Internal tools" value={missionControl.clients.length} />
+          <Metric label="Active tools" value={missionControl.clients.filter((tool) => !tool.stage.includes("archived")).length} />
+          <Metric label="Web helper mapped" value={missionControl.clients.filter((tool) => tool.services.includes("web-helper-care")).length} />
+          <Metric label="Missing website" value={missionControl.clients.filter((tool) => !tool.websiteUrl).length} />
+        </div>
+      ) : null}
       <SimpleTable
         columns={["Tool", "Status", "Purpose", "Website"]}
         empty="No internal tools are mapped from Mission Control yet."
@@ -32,6 +40,15 @@ export default async function ToolsPage() {
         ]) : []}
       />
     </PageSection>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <Card>
+      <p className="text-xs text-white/42">{label}</p>
+      <p className="mt-2 text-2xl font-semibold">{value}</p>
+    </Card>
   );
 }
 
