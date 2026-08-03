@@ -1,22 +1,24 @@
-import { Bell, Bot, Command, LogOut, Plus, Search } from "lucide-react";
+import Link from "next/link";
+import { Bell, Bot, Command, LogOut, Search } from "lucide-react";
 import type { SessionUser } from "@/server/permissions/authorize";
 import { logoutAction } from "@/server/auth/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MobileNavMenu } from "@/components/portal/layout/mobile-nav-menu";
+import { QuickActionMenu } from "@/components/portal/layout/quick-action-menu";
 
 export function PortalHeader({ user, unreadNotifications }: { user: SessionUser; unreadNotifications: number }) {
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-3 border-b border-white/10 bg-[#08090d]/80 px-4 backdrop-blur-2xl sm:h-20 lg:px-8">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <MobileNavMenu user={user} />
-        <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 text-white/50 lg:max-w-xl">
-        <Search className="size-4" />
-        <span className="truncate text-sm">Search clients, tasks, SOPs, files, leads...</span>
-        <kbd className="ml-auto hidden rounded border border-white/10 px-2 py-1 font-mono text-[11px] text-white/45 sm:block">
-          <Command className="mr-1 inline size-3" />K
-        </kbd>
-        </div>
+        <form action="/search" className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 text-white/50 focus-within:border-accent lg:max-w-xl">
+          <Search className="size-4 shrink-0" />
+          <input name="q" placeholder="Search clients, tasks, SOPs, files, leads..." className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/40" />
+          <kbd className="ml-auto hidden rounded border border-white/10 px-2 py-1 font-mono text-[11px] text-white/45 sm:block">
+            <Command className="mr-1 inline size-3" />K
+          </kbd>
+        </form>
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -26,13 +28,12 @@ export function PortalHeader({ user, unreadNotifications }: { user: SessionUser;
             {unreadNotifications > 0 ? <span className="absolute right-1 top-1 size-2 rounded-full bg-danger" /> : null}
           </a>
         </Button>
-        <Button variant="outline" size="sm" className="hidden sm:inline-flex">
-          <Plus className="size-4" />
-          Quick Action
-        </Button>
-        <Button variant="accent" size="sm" className="hidden sm:inline-flex">
-          <Bot className="size-4" />
-          Nova
+        <QuickActionMenu />
+        <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
+          <Link href="/nova">
+            <Bot className="size-4" />
+            Nova
+          </Link>
         </Button>
         <div className="hidden items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 md:flex">
           <div className="size-8 rounded-full bg-gradient-to-br from-white to-white/50" />

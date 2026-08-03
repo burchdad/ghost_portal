@@ -46,7 +46,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
     <PageSection eyebrow="Lead workspace" title={visibleLead.company} description="Progressively enrich raw prospects, log calls, and hand off only when enough signal exists.">
       <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
         <div className="space-y-5">
-          <Card id="quick-call" className="sticky top-5">
+          <Card id="quick-call" className="sticky top-24">
             <div className="flex flex-wrap gap-2">
               <Badge>{visibleLead.leadSource ?? "Unknown source"}</Badge>
               <Badge>{visibleLead.stage}</Badge>
@@ -66,17 +66,28 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
             </div>
             <form action={logCallActivityAction} className="mt-4 grid gap-3">
               <input type="hidden" name="leadId" value={visibleLead.id} />
-              <div className="grid grid-cols-2 gap-2">
-                {outcomes.map((outcome) => <Button key={outcome} name="outcome" value={outcome} size="sm" variant="outline">{outcome}</Button>)}
-              </div>
               <input name="personReached" placeholder="Person reached" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
               <select name="decisionMakerStatus" defaultValue={visibleLead.decisionMakerStatus ?? ""} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
                 {["", "Unknown", "Gatekeeper", "Influencer", "Decision-maker confirmed", "Not decision-maker"].map((option) => <option key={option} value={option}>{option || "Decision-maker status"}</option>)}
+              </select>
+              <select name="interestLevel" defaultValue={visibleLead.interestLevel} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
+                {interests.map((interest) => <option key={interest} value={interest}>{interestLabel(interest)}</option>)}
               </select>
               <textarea name="summary" required placeholder="Fast notes / call summary" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
               <textarea name="objection" placeholder="Objection" className="min-h-16 rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
               <textarea name="nextAction" placeholder="Next action" defaultValue={visibleLead.nextAction ?? ""} className="min-h-16 rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
               <DateTimePicker name="followUpDate" label="Follow-up" helper="Optional callback or next touch." timezone={user.timezone} defaultValue={visibleLead.followUpDate} optional />
+              <details className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                <summary className="cursor-pointer text-sm font-medium text-white/72">Needs discussed</summary>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {needs.map((need) => (
+                    <label key={need} className="flex items-center gap-2 text-xs text-white/58">
+                      <input name="needs" type="checkbox" value={need} defaultChecked={visibleLead.needDiscovered.includes(need)} />
+                      {need}
+                    </label>
+                  ))}
+                </div>
+              </details>
               <div className="grid gap-2 text-xs text-white/58">
                 <label><input name="callbackRequested" type="checkbox" /> Callback requested</label>
                 <label><input name="doNotContact" type="checkbox" defaultChecked={visibleLead.doNotContact} /> Do not contact</label>
@@ -87,6 +98,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
                 <label><input name="customDevelopmentDiscussed" type="checkbox" /> Custom development discussed</label>
                 <label><input name="sensitiveIssue" type="checkbox" /> Legal, security, financial, or public issue</label>
                 <label><input name="needsStephen" type="checkbox" /> Needs Stephen</label>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {outcomes.map((outcome) => <Button key={outcome} name="outcome" value={outcome} size="sm" variant={outcome === "Interested" || outcome === "Meeting Booked" ? "accent" : "outline"}>{outcome}</Button>)}
               </div>
             </form>
           </Card>
