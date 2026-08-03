@@ -25,6 +25,14 @@ describe("Mission Control clients data adapter", () => {
             repo: "burchdad/ghostaisolutions",
             services: ["website-build", "web-helper-care"],
             actions: ["Define monthly scope."]
+          },
+          {
+            id: "codex-geo-smoke-co",
+            clientName: "Codex GEO Smoke Co",
+            stage: "lead",
+            websiteUrl: "https://www.ghostai.solutions",
+            repo: "",
+            services: []
           }
         ]
       })
@@ -55,6 +63,7 @@ describe("Mission Control clients data adapter", () => {
         }
       ]
     });
+    expect(result.clients).toHaveLength(1);
     expect(parseMissionClientRouteId(missionClientRouteId("ghost-ai-solutions"))).toBe("ghost-ai-solutions");
   });
 });

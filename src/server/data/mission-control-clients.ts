@@ -30,6 +30,13 @@ type MissionControlClientsResponse = {
   storage?: unknown;
 };
 
+const smokeTestClientNames = new Set([
+  "codex marketing smoke co",
+  "codex test roofing co",
+  "codex geo clean co",
+  "codex geo smoke co"
+]);
+
 export function missionClientRouteId(id: string) {
   return `mission-${encodeURIComponent(id)}`;
 }
@@ -56,7 +63,10 @@ export async function getMissionControlClients() {
     const body = await response.json() as MissionControlClientsResponse;
     return {
       ok: true as const,
-      clients: (body.clients ?? []).map(normalizeMissionControlClient).filter(Boolean) as MissionControlClientRecord[],
+      clients: (body.clients ?? [])
+        .map(normalizeMissionControlClient)
+        .filter(isMissionControlClientRecord)
+        .filter((client) => !isSmokeTestClient(client)),
       dataHealth: body.dataHealth,
       storage: body.storage
     };
@@ -131,6 +141,15 @@ function normalizeMissionControlClient(value: unknown): MissionControlClientReco
     updatedAt: stringValue(record.updatedAt ?? record.updated_at),
     source: "mission-control"
   };
+}
+
+function isSmokeTestClient(client: MissionControlClientRecord) {
+  const name = client.clientName.toLowerCase().trim();
+  return smokeTestClientNames.has(name);
+}
+
+function isMissionControlClientRecord(client: MissionControlClientRecord | null): client is MissionControlClientRecord {
+  return Boolean(client);
 }
 
 function stringValue(value: unknown) {
