@@ -24,8 +24,16 @@ const promptGroups = [
     prompts: ["What needs my attention today?", "What should Alex work on next?", "Summarize blockers and decisions."]
   },
   {
+    label: "Growth",
+    prompts: ["Ask Viktor what should grow revenue next.", "What offers should we focus on this week?", "Find expansion opportunities."]
+  },
+  {
     label: "Sales",
-    prompts: ["Which leads need follow-up?", "Prep a discovery call handoff.", "What leads need Mission Control sync?"]
+    prompts: ["Ask Vega which leads need follow-up.", "Prep a discovery call handoff.", "What leads need Mission Control sync?"]
+  },
+  {
+    label: "Visibility",
+    prompts: ["Ask GEO what visibility work matters next.", "Where do we need SEO/AEO/GEO attention?", "What visibility claims need Stephen approval?"]
   },
   {
     label: "Operations",
@@ -115,7 +123,7 @@ export function NovaChat({ summary, userName, userRole }: { summary: string; use
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === "Enter") formRef.current?.requestSubmit();
               }}
-              placeholder="Ask Nova about priorities, leads, approvals, reports, SOPs, or next actions..."
+              placeholder="Ask Nova about priorities, Viktor growth strategy, Vega leads, GEO visibility, approvals, reports, SOPs, or next actions..."
               className="min-h-16 flex-1 resize-none bg-transparent text-sm leading-6 text-white outline-none placeholder:text-white/35"
             />
             <Button type="submit" variant="accent" size="icon" disabled={!canSubmit} aria-label="Send message">

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import { buildNovaSummary } from "@/server/data/dashboard";
 import { getPrisma } from "@/server/db/prisma";
 import { env } from "@/server/env/env";
+import { agentsForMessage, formatAgentNetworkForNova } from "@/server/nova/agent-network";
 import { hasPermission } from "@/server/permissions/roles";
 
 export const dynamic = "force-dynamic";
@@ -177,8 +178,9 @@ async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getC
 
 function novaInstructions(role: string) {
   return [
-    "You are Nova, Ghost AI Solutions' internal operations assistant inside Ghost Ops Portal.",
-    "Answer like a focused operations partner: concise, direct, and practical.",
+    "You are Nova, Ghost AI Solutions' CEO-style executive AI agent inside Ghost Ops Portal.",
+    "Answer like an executive operating partner: concise, direct, practical, and aware of company priorities.",
+    "You are the command layer, not every specialist. Route growth strategy to Viktor, sales and lead generation to Vega, visibility/search intelligence to GEO, and marketing/content work to Echo.",
     "Use only the supplied portal context unless the user asks for general drafting or planning help.",
     "Do not invent client facts, prices, deadlines, commitments, or permissions.",
     "When a user asks for action, explain what to do and reference the relevant workspace. The app may show action cards separately.",
@@ -190,6 +192,9 @@ function novaInstructions(role: string) {
 function formatNovaInput(context: Awaited<ReturnType<typeof buildNovaContext>>, messages: Array<{ role: "user" | "assistant"; content: string }>) {
   return [
     "Portal context:",
+    "Ghost agent network:",
+    formatAgentNetworkForNova(),
+    "",
     `User: ${context.user}`,
     `Briefing: ${context.summary}`,
     `Tasks: ${formatRecords(context.tasks)}`,
@@ -217,6 +222,7 @@ function buildNovaActions(message: string, context: Awaited<ReturnType<typeof bu
   };
 
   if (mentions(lower, ["lead", "crm", "pipeline", "call", "mission control", "sync"])) {
+    add({ label: "Vega: sales pipeline", href: "/leads", detail: "Use Vega's lane for sales, lead generation, qualification, and follow-up strategy." });
     add({ label: "Open CRM board", href: "/crm", detail: "Review pipeline columns and sync status." });
     add({ label: "Open lead queue", href: "/leads", detail: "Filter, search, and follow up with leads." });
     context.leads.slice(0, 2).forEach(add);
@@ -234,8 +240,21 @@ function buildNovaActions(message: string, context: Awaited<ReturnType<typeof bu
     context.clients.slice(0, 2).forEach(add);
   }
   if (mentions(lower, ["price", "pricing", "quote", "discount", "offer", "service"])) {
+    add({ label: "Viktor: offer strategy", href: "/pricing", detail: "Use Viktor's lane for growth strategy, offer positioning, and revenue opportunities." });
     add({ label: "Open pricing", href: "/pricing", detail: "Check approved service positioning and pricing rules." });
     context.pricing.slice(0, 2).forEach(add);
+  }
+  if (mentions(lower, ["growth", "grow", "revenue", "strategy", "experiment", "positioning"])) {
+    add({ label: "Viktor: growth strategy", href: "/crm", detail: "Review growth opportunities, pipeline movement, and expansion plays." });
+    add({ label: "Open CRM board", href: "/crm", detail: "Review current revenue pipeline." });
+  }
+  if (mentions(lower, ["geo", "seo", "aeo", "visibility", "search", "ranking", "discoverability"])) {
+    add({ label: "GEO: visibility intelligence", href: "/pricing?filter=seo", detail: "Review SEO, AEO, GEO services and visibility-related work." });
+    add({ label: "Open service catalog", href: "/services", detail: "Review approved visibility service descriptions." });
+  }
+  if (mentions(lower, ["echo", "marketing", "content", "social", "campaign", "post", "newsletter", "brand"])) {
+    add({ label: "Echo: content operations", href: "/communications", detail: "Draft and review marketing or client-facing communications." });
+    add({ label: "Open draft communications", href: "/communications", detail: "Prepare content and messaging for approval." });
   }
   if (mentions(lower, ["sop", "policy", "knowledge", "training", "academy", "explain"])) {
     add({ label: "Open SOP Library", href: "/sops", detail: "Find step-by-step operating procedures." });
@@ -257,6 +276,7 @@ function buildNovaActions(message: string, context: Awaited<ReturnType<typeof bu
   }
 
   if (!actions.length) {
+    agentsForMessage(message).slice(0, 2).forEach((agent) => add({ label: `${agent.name}: ${agent.role}`, href: agent.href, detail: agent.purpose }));
     add({ label: "Dashboard", href: "/dashboard", detail: "Return to the operational command center." });
     add({ label: "Tasks", href: "/tasks", detail: "Review assigned work." });
     add({ label: "CRM", href: "/crm", detail: "Review current lead pipeline." });
