@@ -19,6 +19,11 @@ const envSchema = z.object({
   GHOST_SITE_URL: z.string().url().optional(),
   GHOST_REPO: z.string().optional(),
   GHOST_WEB_HELPER_ID: z.string().optional(),
+  GHOSTCRM_CORE_API_URL: z.string().url().optional(),
+  GHOSTCRM_CORE_API_KEY: z.string().optional(),
+  GHOSTCRM_SYNC_URL: z.string().url().optional(),
+  GHOSTCRM_API_KEY: z.string().optional(),
+  GHOSTCRM_ORGANIZATION_ID: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).optional()
 });
 

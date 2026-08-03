@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
+import { syncLeadToGhostCrm } from "@/server/data/ghostcrm-core";
 import { syncLeadHandoffToMissionControl, type MissionControlLeadPayload } from "@/server/mission-control/client";
 import { canAccessLead, requireUser } from "@/server/permissions/authorize";
 import { hasPermission } from "@/server/permissions/roles";
@@ -518,6 +519,54 @@ export async function sendLeadToMissionControlAction(formData: FormData) {
   revalidatePath(`/leads/${parsed.leadId}`);
 }
 
+export async function syncLeadToGhostCrmAction(formData: FormData) {
+  const user = await requireUser();
+  if (!hasPermission(user, "crm:sync")) throw new Error("Forbidden: crm:sync");
+  const parsed = z.object({ leadId: z.string().min(1) }).parse({ leadId: formData.get("leadId") });
+  if (!(await canAccessLead(user, parsed.leadId, "View"))) throw new Error("Forbidden: lead");
+
+  const lead = await getPrisma().lead.findUnique({
+    where: { id: parsed.leadId },
+    include: { callActivities: { orderBy: { occurredAt: "desc" }, take: 5 } }
+  });
+  if (!lead) throw new Error("Lead not found");
+
+  const name = splitContactName(lead.contactName);
+  const result = await syncLeadToGhostCrm({
+    id: lead.id,
+    title: lead.contactName || lead.company,
+    firstName: name.firstName,
+    lastName: name.lastName,
+    email: lead.contactEmail,
+    phone: lead.contactPhone,
+    company: lead.company,
+    website: lead.website,
+    source: lead.leadSource || "Ops Portal",
+    stage: ghostCrmStageForLead(lead.stage, lead.interestLevel),
+    priority: lead.needsStephenReview ? "high" : "medium",
+    value: lead.approvedValue ? Number(lead.approvedValue) : lead.estimatedValue ? Number(lead.estimatedValue) : 0,
+    leadScore: leadScoreForInterest(lead.interestLevel),
+    description: [
+      lead.qualificationSummary,
+      lead.notes,
+      lead.callActivities.map((call) => `${call.occurredAt.toISOString()}: ${call.outcome} - ${call.summary}`).join("\n")
+    ].filter(Boolean).join("\n\n"),
+    tags: ["ops-portal", lead.leadSource || "lead"],
+    customFields: {
+      opsPortalLeadId: lead.id,
+      missionControlStatus: lead.missionControlStatus,
+      handoffStatus: lead.handoffStatus,
+      needDiscovered: lead.needDiscovered,
+      appointmentStatus: lead.appointmentStatus,
+      nextAction: lead.nextAction
+    }
+  });
+
+  await writeAuditLog({ userId: user.id, action: "lead.ghostcrm_sync", entity: "Lead", entityId: lead.id, after: JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue });
+  revalidatePath("/crm");
+  revalidatePath(`/leads/${lead.id}`);
+}
+
 export async function requestPricingApprovalAction(formData: FormData) {
   const user = await requireUser();
   const parsed = z.object({
@@ -730,6 +779,32 @@ function buildMissionControlPayload(
 function emptyToNull(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function splitContactName(value: string | null) {
+  const parts = (value || "").trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || null,
+    lastName: parts.slice(1).join(" ") || null
+  };
+}
+
+function ghostCrmStageForLead(stage: string, interestLevel: string) {
+  if (stage === "Won") return "closed_won";
+  if (stage === "Lost" || stage === "DoNotContact") return "closed_lost";
+  if (stage === "Proposal" || stage === "Negotiation") return "proposal";
+  if (["Qualified", "Discovery", "MeetingScheduled"].includes(stage) || ["Interested", "StrongInterest", "MeetingRequested"].includes(interestLevel)) return "qualified";
+  if (["Attempted", "Connected", "Contacted", "FollowUp", "Interested"].includes(stage)) return "contacted";
+  return "new";
+}
+
+function leadScoreForInterest(interestLevel: string) {
+  if (interestLevel === "MeetingRequested") return 92;
+  if (interestLevel === "StrongInterest") return 84;
+  if (interestLevel === "Interested") return 72;
+  if (interestLevel === "Possible") return 58;
+  if (interestLevel === "Low") return 35;
+  return 50;
 }
 
 function stringOrUndefined(value: FormDataEntryValue | null) {
