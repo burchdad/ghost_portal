@@ -101,7 +101,7 @@ describe("GhostCRM Core adapter", () => {
       customFields: { opsPortalLeadId: "ops_lead_2" }
     });
 
-    expect(result).toEqual({ status: "synced", response: { success: true, leadId: "crm_lead_2" } });
+    expect(result).toEqual({ status: "synced", externalId: "crm_lead_2", response: { success: true, leadId: "crm_lead_2" } });
     expect(fetchMock).toHaveBeenCalledWith("https://ghostcrm-core.example.test/api/lead-command/sync", expect.objectContaining({
       method: "POST",
       headers: {

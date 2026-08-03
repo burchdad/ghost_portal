@@ -29,6 +29,13 @@ type GhostCrmLeadResponse = {
   leads?: unknown[];
 };
 
+type GhostCrmSyncResponse = {
+  success?: boolean;
+  lead?: { id?: unknown };
+  leadId?: unknown;
+  error?: unknown;
+};
+
 export async function getGhostCrmLeads(limit = 100): Promise<GhostCrmStatus> {
   const baseUrl = ghostCrmBaseUrl();
   const token = ghostCrmApiKey();
@@ -116,7 +123,8 @@ export async function syncLeadToGhostCrm(payload: {
   if (!response.ok) {
     return { status: "failed" as const, error: `GhostCRM Core returned ${response.status}: ${responseBodyText(body)}` };
   }
-  return { status: "synced" as const, response: body };
+  const data = body as GhostCrmSyncResponse;
+  return { status: "synced" as const, externalId: stringValue(data.lead?.id) || stringValue(data.leadId) || null, response: body };
 }
 
 function ghostCrmBaseUrl() {

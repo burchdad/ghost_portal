@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { createLeadAction, logCallActivityAction, sendLeadToMissionControlAction } from "@/server/workflows/leads";
+import { createLeadAction, logCallActivityAction, sendLeadToMissionControlAction, syncLeadToGhostCrmAction } from "@/server/workflows/leads";
 import { syncLeadHandoffToMissionControl } from "@/server/mission-control/client";
+import { syncLeadToGhostCrm } from "@/server/data/ghostcrm-core";
 
 const prismaMock = {
   lead: {
@@ -51,6 +52,10 @@ vi.mock("@/server/mission-control/client", () => ({
   syncLeadHandoffToMissionControl: vi.fn().mockResolvedValue({ status: "not_configured" })
 }));
 
+vi.mock("@/server/data/ghostcrm-core", () => ({
+  syncLeadToGhostCrm: vi.fn().mockResolvedValue({ status: "synced", externalId: "crm_lead_1", response: { success: true, lead: { id: "crm_lead_1" } } })
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn()
 }));
@@ -70,6 +75,7 @@ describe("lead workflows", () => {
     prismaMock.approval.create.mockResolvedValue({ id: "approval_1" });
     prismaMock.auditLog.create.mockResolvedValue({ id: "audit_1" });
     vi.mocked(syncLeadHandoffToMissionControl).mockResolvedValue({ status: "not_configured" });
+    vi.mocked(syncLeadToGhostCrm).mockResolvedValue({ status: "synced", externalId: "crm_lead_1", response: { success: true, lead: { id: "crm_lead_1" } } });
   });
 
   it("creates a raw cold-call lead without service interest or estimated value", async () => {
@@ -251,6 +257,57 @@ describe("lead workflows", () => {
         missionControlPayload: expect.objectContaining({
           helperSync: { status: "sent", externalId: "mc_123", response: { id: "mc_123" } }
         })
+      })
+    }));
+  });
+
+  it("stores GhostCRM sync status and external id when Core accepts the lead", async () => {
+    prismaMock.lead.findUnique.mockResolvedValue({
+      id: "lead_1",
+      company: "Acme Plumbing",
+      contactName: "Dana Lee",
+      contactEmail: "dana@example.test",
+      contactPhone: "555-0100",
+      website: "https://acme.example.test",
+      leadSource: "Manual Cold Call",
+      stage: "Discovery",
+      interestLevel: "Interested",
+      needsStephenReview: false,
+      approvedValue: null,
+      estimatedValue: 12000,
+      qualificationSummary: "Needs discovery.",
+      notes: "Good fit.",
+      missionControlStatus: "Sent to Mission Control",
+      handoffStatus: "SentToMissionControl",
+      needDiscovered: ["Website"],
+      appointmentStatus: "Follow-up requested",
+      nextAction: "Book discovery call",
+      callActivities: [{ outcome: "Interested", summary: "Asked for website examples.", occurredAt: new Date("2026-08-03T15:00:00.000Z") }]
+    });
+    prismaMock.lead.update.mockResolvedValue({ id: "lead_1" });
+
+    const form = new FormData();
+    form.set("leadId", "lead_1");
+
+    await syncLeadToGhostCrmAction(form);
+
+    expect(syncLeadToGhostCrm).toHaveBeenCalledWith(expect.objectContaining({
+      id: "lead_1",
+      company: "Acme Plumbing",
+      firstName: "Dana",
+      lastName: "Lee",
+      stage: "qualified",
+      leadScore: 72
+    }));
+    expect(prismaMock.lead.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "lead_1" },
+      data: expect.objectContaining({
+        ghostCrmStatus: "Synced",
+        ghostCrmExternalId: "crm_lead_1",
+        ghostCrmPayload: expect.objectContaining({ status: "synced", externalId: "crm_lead_1" }),
+        ghostCrmSyncedAt: expect.any(Date),
+        ghostCrmSyncError: null,
+        ghostCrmSyncAttempts: { increment: 1 }
       })
     }));
   });

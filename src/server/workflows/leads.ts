@@ -561,8 +561,21 @@ export async function syncLeadToGhostCrmAction(formData: FormData) {
       nextAction: lead.nextAction
     }
   });
+  const jsonResult = JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue;
+  const status = result.status === "synced" ? "Synced" : result.status === "failed" ? "Sync Failed" : "Not Configured";
+  await getPrisma().lead.update({
+    where: { id: lead.id },
+    data: {
+      ghostCrmStatus: status,
+      ghostCrmExternalId: result.status === "synced" ? result.externalId : undefined,
+      ghostCrmPayload: jsonResult,
+      ghostCrmSyncedAt: result.status === "synced" ? new Date() : undefined,
+      ghostCrmSyncError: result.status === "failed" ? result.error : result.status === "not_configured" ? "GhostCRM Core is not configured." : null,
+      ghostCrmSyncAttempts: { increment: 1 }
+    }
+  });
 
-  await writeAuditLog({ userId: user.id, action: "lead.ghostcrm_sync", entity: "Lead", entityId: lead.id, after: JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue });
+  await writeAuditLog({ userId: user.id, action: "lead.ghostcrm_sync", entity: "Lead", entityId: lead.id, after: jsonResult });
   revalidatePath("/crm");
   revalidatePath(`/leads/${lead.id}`);
 }
