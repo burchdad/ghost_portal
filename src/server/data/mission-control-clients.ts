@@ -31,12 +31,13 @@ type MissionControlClientsResponse = {
 };
 
 export function missionClientRouteId(id: string) {
-  return `mission:${encodeURIComponent(id)}`;
+  return `mission-${encodeURIComponent(id)}`;
 }
 
 export function parseMissionClientRouteId(routeId: string) {
-  if (!routeId.startsWith("mission:")) return null;
-  return decodeURIComponent(routeId.slice("mission:".length));
+  if (routeId.startsWith("mission-")) return decodeURIComponent(routeId.slice("mission-".length));
+  if (routeId.startsWith("mission:")) return decodeURIComponent(routeId.slice("mission:".length));
+  return null;
 }
 
 export async function getMissionControlClients() {
