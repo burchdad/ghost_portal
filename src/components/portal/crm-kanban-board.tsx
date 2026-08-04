@@ -13,6 +13,7 @@ export type CrmKanbanLead = {
   company: string;
   contact: string;
   stage: CrmKanbanStage;
+  outcomeStage: string | null;
   interest: string;
   source: string;
   assignedTo: string;
@@ -26,29 +27,17 @@ export type CrmKanbanLead = {
 
 export type CrmKanbanStage =
   | "New"
-  | "ReadyToCall"
   | "Attempted"
-  | "Connected"
   | "Qualified"
-  | "Discovery"
   | "Proposal"
-  | "Won"
-  | "Lost"
-  | "Nurture"
-  | "DoNotContact";
+  | "Nurture";
 
 const columns: Array<{ id: CrmKanbanStage; label: string; accent: string }> = [
   { id: "New", label: "New", accent: "bg-sky-300" },
-  { id: "ReadyToCall", label: "Ready", accent: "bg-cyan-300" },
   { id: "Attempted", label: "Attempted", accent: "bg-zinc-300" },
-  { id: "Connected", label: "Connected", accent: "bg-amber-300" },
   { id: "Qualified", label: "Qualified", accent: "bg-emerald-300" },
-  { id: "Discovery", label: "Discovery", accent: "bg-teal-300" },
   { id: "Proposal", label: "Proposal", accent: "bg-fuchsia-300" },
-  { id: "Won", label: "Won", accent: "bg-green-300" },
-  { id: "Lost", label: "Lost", accent: "bg-red-300" },
-  { id: "Nurture", label: "Nurture", accent: "bg-indigo-300" },
-  { id: "DoNotContact", label: "DNC", accent: "bg-orange-300" }
+  { id: "Nurture", label: "Nurture", accent: "bg-indigo-300" }
 ];
 
 export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; canSync: boolean }) {
@@ -103,7 +92,7 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
         <div>
           <h3 className="text-base font-semibold">CRM pipeline board</h3>
-          <p className="mt-1 text-sm text-white/50">Drag cards across lists or use the arrow controls on each card.</p>
+          <p className="mt-1 text-sm text-white/50">Drag cards across simplified lists or use the arrow controls on each card.</p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-white/56">
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">{boardStats.total} leads</span>
@@ -167,6 +156,8 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
                       <span className={cn("h-2 w-10 rounded-full", column.accent)} aria-hidden="true" />
                       {lead.ghostCrmStatus === "Synced" ? <span className="h-2 w-10 rounded-full bg-accent" aria-hidden="true" /> : null}
                       {lead.ghostCrmStatus === "Sync Failed" ? <span className="h-2 w-10 rounded-full bg-danger" aria-hidden="true" /> : null}
+                      {lead.outcomeStage === "Won" ? <span className="h-2 w-10 rounded-full bg-green-300" aria-hidden="true" /> : null}
+                      {lead.outcomeStage === "Lost" ? <span className="h-2 w-10 rounded-full bg-red-300" aria-hidden="true" /> : null}
                     </div>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -184,6 +175,11 @@ export function CrmKanbanBoard({ leads, canSync }: { leads: CrmKanbanLead[]; can
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Badge className="h-6 px-2">{lead.interest}</Badge>
+                      {lead.outcomeStage ? (
+                        <Badge className={cn("h-6 px-2", lead.outcomeStage === "Won" ? "border-green-300/40 text-green-200" : "border-red-300/40 text-red-200")}>
+                          {lead.outcomeStage}
+                        </Badge>
+                      ) : null}
                       <Badge className="h-6 px-2">{lead.source}</Badge>
                       <Badge className={cn("h-6 px-2", lead.ghostCrmStatus === "Synced" ? "border-accent/30 text-accent" : lead.ghostCrmStatus === "Sync Failed" ? "border-danger/30 text-danger" : "")}>
                         {lead.ghostCrmStatus}

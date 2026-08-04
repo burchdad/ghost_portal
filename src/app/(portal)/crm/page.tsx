@@ -41,6 +41,7 @@ export default async function CrmPage() {
       company: lead.company,
       contact: lead.contactName ?? lead.contactEmail ?? lead.contactPhone ?? "Unknown contact",
       stage: kanbanStage(lead.stage),
+      outcomeStage: ["Won", "Lost"].includes(lead.stage) ? lead.stage : null,
       interest: interestLabel(lead.interestLevel),
       source: lead.leadSource ?? "Unknown",
       assignedTo: lead.assignedUser?.preferredName ?? lead.assignedUser?.name ?? "Unassigned",
@@ -184,15 +185,21 @@ function interestLabel(value: string) {
 
 function kanbanStage(value: string): CrmKanbanStage {
   if (value === "Researching") return "New";
-  if (value === "Contacted") return "Connected";
+  if (value === "ReadyToCall") return "New";
+  if (value === "Contacted") return "Attempted";
+  if (value === "Connected") return "Attempted";
   if (value === "Interested") return "Qualified";
+  if (value === "Discovery") return "Qualified";
+  if (value === "MeetingScheduled") return "Qualified";
   if (value === "FollowUp") return "Nurture";
-  if (value === "MeetingScheduled") return "Discovery";
   if (value === "Negotiation") return "Proposal";
+  if (value === "Won") return "Proposal";
+  if (value === "Lost") return "Proposal";
+  if (value === "DoNotContact") return "Nurture";
   if (isKanbanStage(value)) return value;
   return "New";
 }
 
 function isKanbanStage(value: string): value is CrmKanbanStage {
-  return ["New", "ReadyToCall", "Attempted", "Connected", "Qualified", "Discovery", "Proposal", "Won", "Lost", "Nurture", "DoNotContact"].includes(value);
+  return ["New", "Attempted", "Qualified", "Proposal", "Nurture"].includes(value);
 }
