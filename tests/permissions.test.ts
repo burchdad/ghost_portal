@@ -40,6 +40,12 @@ describe("role permissions", () => {
     expect(hasPermission(alex, "crm:sync")).toBe(true);
   });
 
+  it("allows Operations to add employee accounts without broader admin access", () => {
+    expect(hasPermission(alex, "users:manage")).toBe(true);
+    expect(hasPermission(alex, "admin:access")).toBe(false);
+    expect(hasPermission(alex, "permissions:manage")).toBe(false);
+  });
+
   it("allows Founder to manage permissions", () => {
     expect(hasPermission(stephen, "permissions:manage")).toBe(true);
     expect(hasPermission(stephen, "pricing:manage")).toBe(true);

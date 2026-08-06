@@ -100,7 +100,8 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "announcements:read",
     "onboarding:complete",
     "tasks:read:assigned",
-    "tasks:update:assigned"
+    "tasks:update:assigned",
+    "users:manage"
   ],
   Sales: [
     "academy:read",
