@@ -7,6 +7,7 @@ import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { requirePermission } from "@/server/permissions/authorize";
 import type { Role } from "@/server/permissions/roles";
+import { defaultTimezone, isValidTimezone } from "@/lib/timezones";
 
 export type CreateEmployeeState = {
   status: "idle" | "success" | "error";
@@ -22,7 +23,7 @@ const createEmployeeSchema = z.object({
   preferredName: z.string().trim().optional(),
   email: z.string().trim().email("Enter a valid email address."),
   role: z.enum(["Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"]),
-  timezone: z.string().trim().min(1).default("America/Chicago"),
+  timezone: z.string().trim().min(1).refine(isValidTimezone, "Choose a valid timezone.").default(defaultTimezone),
   status: z.enum(["Invited", "Active"]).default("Active"),
   temporaryPassword: z.string().trim().optional()
 });
@@ -34,7 +35,7 @@ export async function createEmployeeAction(_state: CreateEmployeeState, formData
     preferredName: formData.get("preferredName") || undefined,
     email: formData.get("email"),
     role: formData.get("role"),
-    timezone: formData.get("timezone") || "America/Chicago",
+    timezone: formData.get("timezone") || defaultTimezone,
     status: formData.get("status") || "Active",
     temporaryPassword: formData.get("temporaryPassword") || undefined
   });

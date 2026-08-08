@@ -4,11 +4,14 @@ import { useActionState } from "react";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createEmployeeAction, type CreateEmployeeState } from "@/server/workflows/users";
+import { commonTimezones, defaultTimezone, getSupportedTimezones, timezoneLabel } from "@/lib/timezones";
 
 const initialState: CreateEmployeeState = { status: "idle" };
+const supportedTimezones = getSupportedTimezones();
 
 export function CreateEmployeeForm({ roles }: { roles: string[] }) {
   const [state, formAction, pending] = useActionState(createEmployeeAction, initialState);
+  const additionalTimezones = supportedTimezones.filter((timezone) => !commonTimezones.includes(timezone as (typeof commonTimezones)[number]));
 
   return (
     <form action={formAction} className="grid gap-4 lg:grid-cols-2">
@@ -32,7 +35,14 @@ export function CreateEmployeeForm({ roles }: { roles: string[] }) {
       </label>
       <label className="text-sm font-medium">
         Timezone
-        <input name="timezone" defaultValue="America/Chicago" className="mt-2 h-10 w-full rounded-lg border border-white/10 bg-black/24 px-3 text-sm outline-none transition focus:border-accent" />
+        <select name="timezone" defaultValue={defaultTimezone} className="mt-2 h-10 w-full rounded-lg border border-white/10 bg-black/24 px-3 text-sm outline-none transition focus:border-accent">
+          <optgroup label="Common">
+            {commonTimezones.map((timezone) => <option key={timezone} value={timezone}>{timezoneLabel(timezone)}</option>)}
+          </optgroup>
+          <optgroup label="All timezones">
+            {additionalTimezones.map((timezone) => <option key={timezone} value={timezone}>{timezoneLabel(timezone)}</option>)}
+          </optgroup>
+        </select>
       </label>
       <label className="text-sm font-medium">
         Status

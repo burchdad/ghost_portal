@@ -22,6 +22,7 @@ export function TimeClockCard({
 }: {
   clock: {
     subjectName: string;
+    subjectTimezone: string;
     status: "ClockedOut" | "ClockedIn" | "OnBreak" | "AwaitingCorrection" | "Completed";
     canUseControls: boolean;
     shiftId?: string;

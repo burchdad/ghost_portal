@@ -6,6 +6,7 @@ import { formatTaskActivityTarget, formatTaskStatus } from "@/lib/task-status";
 
 type TimeClockSnapshot = {
   subjectName: string;
+  subjectTimezone: string;
   status: "ClockedOut" | "ClockedIn" | "OnBreak" | "AwaitingCorrection" | "Completed";
   canUseControls: boolean;
   shiftId?: string;
@@ -138,12 +139,14 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
   const hoursThisWeek = reports.reduce((total, report) => total + Number(report.hoursWorked), 0).toFixed(1);
   const subjectTimeClock = buildTimeClockSnapshot({
     subjectName,
+    subjectTimezone: trialSubject.timezone,
     shift: activeShift,
     canUseControls: user.id === trialSubject.id && hasPermission(user, "reports:submit"),
     dailyReportStatus: todayReport ? todayReport.status : "Not started"
   });
   const currentUserTimeClock = buildTimeClockSnapshot({
     subjectName: user.preferredName ?? user.name,
+    subjectTimezone: user.timezone,
     shift: currentUserActiveShift,
     canUseControls: hasPermission(user, "reports:submit"),
     dailyReportStatus: user.id === trialSubject.id && todayReport ? todayReport.status : "Not started"
@@ -211,11 +214,13 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
 
 function buildTimeClockSnapshot({
   subjectName,
+  subjectTimezone,
   shift,
   canUseControls,
   dailyReportStatus
 }: {
   subjectName: string;
+  subjectTimezone: string;
   shift: {
     id: string;
     status: TimeClockSnapshot["status"];
@@ -228,6 +233,7 @@ function buildTimeClockSnapshot({
 }): TimeClockSnapshot {
   return {
     subjectName,
+    subjectTimezone,
     status: shift ? shift.status : "ClockedOut",
     canUseControls,
     shiftId: shift?.id,
