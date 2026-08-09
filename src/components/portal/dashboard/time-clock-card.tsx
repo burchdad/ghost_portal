@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Coffee, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,12 +28,15 @@ export function TimeClockCard({
     canUseControls: boolean;
     shiftId?: string;
     startedAt?: string;
+    endedAt?: string;
     openBreakStartedAt?: string;
     breakMinutes: number;
+    workedMinutes?: number;
     dailyReportStatus: string;
   };
   timezone: string;
 }) {
+  const router = useRouter();
   const [now, setNow] = useState(() => new Date());
   const [clockInState, clockInFormAction, clockInPending] = useActionState(clockInDashboardAction, initialActionState);
   const [clockOutState, clockOutFormAction, clockOutPending] = useActionState(clockOutDashboardAction, initialActionState);
@@ -46,11 +50,19 @@ export function TimeClockCard({
 
   const startedAt = useMemo(() => clock.startedAt ? new Date(clock.startedAt) : null, [clock.startedAt]);
   const openBreakStartedAt = useMemo(() => clock.openBreakStartedAt ? new Date(clock.openBreakStartedAt) : null, [clock.openBreakStartedAt]);
-  const workedMinutes = startedAt ? activeElapsedMinutes(startedAt, now, clock.breakMinutes, openBreakStartedAt) : 0;
+  const isCompleted = clock.status === "Completed";
+  const workedMinutes = isCompleted && typeof clock.workedMinutes === "number" ? clock.workedMinutes : startedAt ? activeElapsedMinutes(startedAt, now, clock.breakMinutes, openBreakStartedAt) : 0;
   const currentBreakMinutes = openBreakStartedAt ? minutesBetween(openBreakStartedAt, now) : 0;
   const isWorking = clock.status === "ClockedIn" || clock.status === "OnBreak";
   const isOnBreak = clock.status === "OnBreak";
   const latestState = [clockInState, clockOutState, startBreakState, endBreakState].findLast((state) => state.status !== "idle") ?? initialActionState;
+
+  useEffect(() => {
+    if (latestState.status === "success") {
+      setNow(new Date());
+      router.refresh();
+    }
+  }, [latestState.status, latestState.message, router]);
 
   return (
     <Card className="w-full max-w-sm p-4">

@@ -11,8 +11,10 @@ type TimeClockSnapshot = {
   canUseControls: boolean;
   shiftId?: string;
   startedAt?: string;
+  endedAt?: string;
   openBreakStartedAt?: string;
   breakMinutes: number;
+  workedMinutes?: number;
   dailyReportStatus: string;
 };
 
@@ -51,7 +53,7 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
   const isFounderView = user.role === "Founder";
   const canSeeAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
 
-  const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows, activeShift, todayReport] = await Promise.all([
+  const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows, activeShift, latestCompletedShift, todayReport] = await Promise.all([
     prisma.task.findMany({
       where: { ownerId: trialSubject.id, archivedAt: null },
       include: { owner: true },
@@ -124,6 +126,11 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
       include: { breaks: { where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1 } },
       orderBy: { startedAt: "desc" }
     }),
+    prisma.workShift.findFirst({
+      where: { userId: trialSubject.id, status: "Completed" },
+      include: { breaks: { where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1 } },
+      orderBy: [{ endedAt: "desc" }, { startedAt: "desc" }]
+    }),
     prisma.dailyReport.findFirst({ where: { userId: trialSubject.id }, orderBy: { reportDate: "desc" }, select: { status: true, reportDate: true } })
   ]);
   const currentUserActiveShift =
@@ -134,20 +141,28 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
           include: { breaks: { where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1 } },
           orderBy: { startedAt: "desc" }
         });
+  const currentUserLatestCompletedShift =
+    user.id === trialSubject.id
+      ? latestCompletedShift
+      : await prisma.workShift.findFirst({
+          where: { userId: user.id, status: "Completed" },
+          include: { breaks: { where: { endedAt: null }, orderBy: { startedAt: "desc" }, take: 1 } },
+          orderBy: [{ endedAt: "desc" }, { startedAt: "desc" }]
+        });
 
   const onboardingPercent = modules === 0 ? 0 : Math.round((completions / modules) * 100);
   const hoursThisWeek = reports.reduce((total, report) => total + Number(report.hoursWorked), 0).toFixed(1);
   const subjectTimeClock = buildTimeClockSnapshot({
     subjectName,
     subjectTimezone: trialSubject.timezone,
-    shift: activeShift,
+    shift: activeShift ?? latestCompletedShift,
     canUseControls: user.id === trialSubject.id && hasPermission(user, "reports:submit"),
     dailyReportStatus: todayReport ? todayReport.status : "Not started"
   });
   const currentUserTimeClock = buildTimeClockSnapshot({
     subjectName: user.preferredName ?? user.name,
     subjectTimezone: user.timezone,
-    shift: currentUserActiveShift,
+    shift: currentUserActiveShift ?? currentUserLatestCompletedShift,
     canUseControls: hasPermission(user, "reports:submit"),
     dailyReportStatus: user.id === trialSubject.id && todayReport ? todayReport.status : "Not started"
   });
@@ -225,7 +240,9 @@ function buildTimeClockSnapshot({
     id: string;
     status: TimeClockSnapshot["status"];
     startedAt: Date;
+    endedAt?: Date | null;
     breakMinutes: number;
+    netMinutes?: number | null;
     breaks: Array<{ startedAt: Date }>;
   } | null;
   canUseControls: boolean;
@@ -238,8 +255,10 @@ function buildTimeClockSnapshot({
     canUseControls,
     shiftId: shift?.id,
     startedAt: shift?.startedAt.toISOString(),
+    endedAt: shift?.endedAt?.toISOString(),
     openBreakStartedAt: shift?.breaks[0]?.startedAt.toISOString(),
     breakMinutes: shift?.breakMinutes ?? 0,
+    workedMinutes: shift?.status === "Completed" ? shift.netMinutes ?? 0 : undefined,
     dailyReportStatus
   };
 }
