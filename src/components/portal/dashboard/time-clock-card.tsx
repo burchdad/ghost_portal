@@ -55,7 +55,7 @@ export function TimeClockCard({
   const currentBreakMinutes = openBreakStartedAt ? minutesBetween(openBreakStartedAt, now) : 0;
   const isWorking = clock.status === "ClockedIn" || clock.status === "OnBreak";
   const isOnBreak = clock.status === "OnBreak";
-  const latestState = [clockInState, clockOutState, startBreakState, endBreakState].findLast((state) => state.status !== "idle") ?? initialActionState;
+  const latestState = latestActionState([clockInState, clockOutState, startBreakState, endBreakState]);
 
   useEffect(() => {
     if (latestState.status === "success") {
@@ -148,4 +148,11 @@ function statusTone(status: string) {
   if (status === "OnBreak") return "border-danger/40 bg-danger/10 text-danger";
   if (status === "AwaitingCorrection") return "border-warning/40 bg-warning/10 text-warning";
   return "border-white/10 bg-white/[0.04] text-white/54";
+}
+
+function latestActionState(states: TimeClockActionState[]) {
+  for (let index = states.length - 1; index >= 0; index -= 1) {
+    if (states[index]?.status !== "idle") return states[index] ?? initialActionState;
+  }
+  return initialActionState;
 }
