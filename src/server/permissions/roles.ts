@@ -84,6 +84,7 @@ export const rolePermissions: Record<Role, Permission[]> = {
     "academy:read",
     "approvals:request",
     "clients:read:assigned",
+    "clients:read:all",
     "clients:update:notes",
     "crm:read",
     "crm:sync",

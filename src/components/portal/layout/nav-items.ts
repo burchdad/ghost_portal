@@ -65,6 +65,7 @@ const operationsTrialNav = [
   "My Tasks",
   "Service Catalog",
   "Pricing",
+  "Clients",
   "Employees",
   "CRM",
   "Viktor",
