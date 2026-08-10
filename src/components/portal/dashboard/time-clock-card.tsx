@@ -6,6 +6,7 @@ import { Coffee, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { activeElapsedMinutes, formatDuration, minutesBetween } from "@/lib/time-clock";
+import { safeTimezone } from "@/lib/timezones";
 
 import {
   clockInDashboardAction,
@@ -37,6 +38,7 @@ export function TimeClockCard({
   timezone: string;
 }) {
   const router = useRouter();
+  const displayTimezone = safeTimezone(timezone);
   const [now, setNow] = useState(() => new Date());
   const [clockInState, clockInFormAction, clockInPending] = useActionState(clockInDashboardAction, initialActionState);
   const [clockOutState, clockOutFormAction, clockOutPending] = useActionState(clockOutDashboardAction, initialActionState);
@@ -127,8 +129,8 @@ export function TimeClockCard({
       )}
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/42">
-        <span>{timezone}</span>
-        {startedAt ? <span>Started {startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: timezone })}</span> : null}
+        <span>{displayTimezone}</span>
+        {startedAt ? <span>Started {startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: displayTimezone })}</span> : null}
         {isOnBreak ? <span>{formatDuration(clock.breakMinutes + currentBreakMinutes)} break</span> : null}
       </div>
     </Card>

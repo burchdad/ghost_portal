@@ -3,6 +3,7 @@ import type { SessionUser } from "@/server/permissions/authorize";
 import { getPrisma } from "@/server/db/prisma";
 import { createSessionToken, hashSessionToken } from "@/server/auth/tokens";
 import { writeAuditLog } from "@/server/audit/audit";
+import { safeTimezone } from "@/lib/timezones";
 
 export const sessionCookieName = "ghost_portal_session";
 const sessionDays = 7;
@@ -35,7 +36,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     email: session.user.email,
     role: session.user.role.name,
     status: session.user.status,
-    timezone: session.user.timezone
+    timezone: safeTimezone(session.user.timezone)
   };
 }
 

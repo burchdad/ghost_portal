@@ -3,6 +3,7 @@ import { getTrialSubjectForViewer } from "@/server/data/trial-subject";
 import { getPrisma } from "@/server/db/prisma";
 import { hasPermission } from "@/server/permissions/roles";
 import { formatTaskActivityTarget, formatTaskStatus } from "@/lib/task-status";
+import { safeTimezone } from "@/lib/timezones";
 
 type TimeClockSnapshot = {
   subjectName: string;
@@ -319,15 +320,6 @@ function formatDate(date: Date | null, timezone: string) {
     timeZone: safeTimezone(timezone),
     timeZoneName: "short"
   }).format(date);
-}
-
-function safeTimezone(timezone: string) {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: timezone });
-    return timezone;
-  } catch {
-    return "UTC";
-  }
 }
 
 function startOfWeekUtc(date: Date) {

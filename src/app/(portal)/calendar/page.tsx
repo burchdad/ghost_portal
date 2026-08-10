@@ -3,6 +3,7 @@ import { PageSection } from "@/components/portal/page-section";
 import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
 import { formatDuration } from "@/lib/time-clock";
+import { safeTimezone } from "@/lib/timezones";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 
@@ -63,7 +64,7 @@ function formatTime(date: Date | null, timezone: string) {
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
-    timeZone: timezone
+    timeZone: safeTimezone(timezone)
   }).format(date);
 }
 

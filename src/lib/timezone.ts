@@ -1,3 +1,5 @@
+import { safeTimezone } from "@/lib/timezones";
+
 export function todayInTimezone(timezone: string) {
   return formatDatePartsInTimezone(new Date(), timezone);
 }
@@ -60,11 +62,3 @@ function getParts(date: Date, timezone: string) {
   };
 }
 
-function safeTimezone(timezone: string) {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: timezone });
-    return timezone;
-  } catch {
-    return "UTC";
-  }
-}

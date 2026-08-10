@@ -45,13 +45,26 @@ export function getSupportedTimezones() {
 
 export function isValidTimezone(timezone: string) {
   try {
-    Intl.DateTimeFormat(undefined, { timeZone: timezone });
+    Intl.DateTimeFormat(undefined, { timeZone: normalizeTimezone(timezone) });
     return true;
   } catch {
     return false;
   }
 }
 
+export function normalizeTimezone(timezone: string) {
+  return timezone
+    .trim()
+    .split("/")
+    .map((part) => part.trim().replaceAll(" ", "_"))
+    .join("/");
+}
+
+export function safeTimezone(timezone: string) {
+  const normalized = normalizeTimezone(timezone);
+  return isValidTimezone(normalized) ? normalized : defaultTimezone;
+}
+
 export function timezoneLabel(timezone: string) {
-  return timezone.replaceAll("_", " ");
+  return normalizeTimezone(timezone).replaceAll("_", " ");
 }

@@ -4,6 +4,7 @@ import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/lib/time-clock";
+import { safeTimezone } from "@/lib/timezones";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
 
@@ -84,13 +85,4 @@ function formatShiftStatus(status: string) {
 
 function calculateActiveMinutes(startedAt: Date, breakMinutes: number) {
   return Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 60000) - breakMinutes);
-}
-
-function safeTimezone(timezone: string) {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: timezone });
-    return timezone;
-  } catch {
-    return "UTC";
-  }
 }
