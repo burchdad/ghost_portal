@@ -64,12 +64,12 @@ describe("Mission Control client", () => {
       source: "client_admin_dashboard",
       requestType: "lead_handoff",
       request_type: "lead_handoff",
-      clientId: "ghost-ai-solutions",
-      client: "Ghost AI Solutions",
-      clientName: "Ghost AI Solutions",
+      clientId: "ghostcrm",
+      client: "GhostCRM",
+      clientName: "GhostCRM",
       site: "https://opsportal.ghostai.solutions",
       repo: "burchdad/ghost_portal",
-      webHelperId: "ghost-ai-solutions-web-helper",
+      webHelperId: "ghostcrm-web-helper",
       summary: "Lead handoff: Acme Plumbing",
       title: "Lead handoff: Acme Plumbing",
       leadId: "lead_1",
@@ -78,12 +78,12 @@ describe("Mission Control client", () => {
       lead: expect.objectContaining({ leadId: "lead_1", businessName: "Acme Plumbing" }),
       metadata: expect.objectContaining({
         source: "ghost_ops_portal",
-        clientId: "ghost-ai-solutions",
-        clientName: "Ghost AI Solutions",
+        clientId: "ghostcrm",
+        clientName: "GhostCRM",
         repo: "burchdad/ghost_portal"
       })
     });
-    expect(body.details).toContain("Client: Ghost AI Solutions");
+    expect(body.details).toContain("Client: GhostCRM");
     expect(body.details).toContain("Possible website need.");
     expect(body.message).toBe(body.details);
   });

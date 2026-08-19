@@ -134,10 +134,10 @@ function buildWebhookBody(payload: MissionControlLeadPayload) {
 
 function getMissionControlClientIdentity() {
   const appUrl = env.NEXT_PUBLIC_APP_URL ?? "https://opsportal.ghostai.solutions";
-  const clientId = env.GHOST_CLIENT_ID ?? "ghost-ai-solutions";
+  const clientId = env.GHOST_CLIENT_ID ?? "ghostcrm";
   return {
     clientId,
-    clientName: env.GHOST_CLIENT_NAME ?? "Ghost AI Solutions",
+    clientName: env.GHOST_CLIENT_NAME ?? "GhostCRM",
     siteUrl: env.GHOST_SITE_URL ?? appUrl,
     repo: env.GHOST_REPO ?? "burchdad/ghost_portal",
     webHelperId: env.GHOST_WEB_HELPER_ID ?? `${clientId}-web-helper`
