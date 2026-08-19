@@ -12,8 +12,10 @@ export function PortalHeader({ user, unreadNotifications }: { user: SessionUser;
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-3 border-b border-white/10 bg-[#08090d]/80 px-4 backdrop-blur-2xl sm:h-20 lg:px-8">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <MobileNavMenu user={user} />
-        <form action="/search" className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-4 text-white/50 focus-within:border-accent lg:max-w-xl">
-          <Search className="size-4 shrink-0" />
+        <form action="/search" method="GET" className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] px-3 text-white/50 focus-within:border-accent lg:max-w-xl">
+          <button type="submit" aria-label="Search" className="grid size-7 shrink-0 place-items-center rounded-md text-white/55 transition hover:bg-white/10 hover:text-white">
+            <Search className="size-4" />
+          </button>
           <input name="q" placeholder="Search clients, tasks, SOPs, files, leads..." className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/40" />
           <kbd className="ml-auto hidden rounded border border-white/10 px-2 py-1 font-mono text-[11px] text-white/45 sm:block">
             <Command className="mr-1 inline size-3" />K
