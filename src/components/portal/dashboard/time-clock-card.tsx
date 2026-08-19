@@ -50,8 +50,8 @@ export function TimeClockCard({
     return () => window.clearInterval(interval);
   }, []);
 
-  const startedAt = useMemo(() => clock.startedAt ? new Date(clock.startedAt) : null, [clock.startedAt]);
-  const openBreakStartedAt = useMemo(() => clock.openBreakStartedAt ? new Date(clock.openBreakStartedAt) : null, [clock.openBreakStartedAt]);
+  const startedAt = useMemo(() => dateFromIso(clock.startedAt), [clock.startedAt]);
+  const openBreakStartedAt = useMemo(() => dateFromIso(clock.openBreakStartedAt), [clock.openBreakStartedAt]);
   const isCompleted = clock.status === "Completed";
   const workedMinutes = isCompleted && typeof clock.workedMinutes === "number" ? clock.workedMinutes : startedAt ? activeElapsedMinutes(startedAt, now, clock.breakMinutes, openBreakStartedAt) : 0;
   const currentBreakMinutes = openBreakStartedAt ? minutesBetween(openBreakStartedAt, now) : 0;
@@ -135,6 +135,12 @@ export function TimeClockCard({
       </div>
     </Card>
   );
+}
+
+function dateFromIso(value?: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function statusLabel(status: string) {

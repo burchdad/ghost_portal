@@ -116,22 +116,7 @@ export async function submitDailyReport(input: unknown) {
 export async function submitDailyReportAction(formData: FormData) {
   "use server";
 
-  const saved = await submitDailyReport({
-    reportDate: formData.get("reportDate"),
-    shiftStart: formData.get("shiftStart"),
-    shiftEnd: formData.get("shiftEnd"),
-    breakMinutes: formData.get("breakMinutes"),
-    completed: formData.get("completed"),
-    inProgress: formData.get("inProgress"),
-    clientUpdates: formData.get("clientUpdates"),
-    leadActivity: formData.get("leadActivity"),
-    meetings: formData.get("meetings"),
-    blockers: formData.get("blockers"),
-    waitingOnStephen: formData.get("waitingOnStephen"),
-    recommendations: formData.get("recommendations"),
-    tomorrowPriorities: formData.get("tomorrowPriorities"),
-    submit: formData.get("submit") === "true"
-  });
+  const saved = await submitDailyReport(dailyReportInputFromFormData(formData));
 
   redirect(`/daily-reports/${saved.id}`);
 }
@@ -179,6 +164,31 @@ export async function reviewDailyReportAction(formData: FormData) {
   ]);
 
   revalidateReportPaths(report.id);
+}
+
+function dailyReportInputFromFormData(formData: FormData) {
+  return {
+    reportDate: formData.get("reportDate"),
+    shiftStart: formData.get("shiftStart"),
+    shiftEnd: formData.get("shiftEnd"),
+    breakMinutes: formData.get("breakMinutes"),
+    completed: formData.get("completed"),
+    inProgress: formData.get("inProgress"),
+    clientUpdates: optionalFormString(formData.get("clientUpdates")),
+    leadActivity: optionalFormString(formData.get("leadActivity")),
+    meetings: optionalFormString(formData.get("meetings")),
+    blockers: optionalFormString(formData.get("blockers")),
+    waitingOnStephen: optionalFormString(formData.get("waitingOnStephen")),
+    recommendations: optionalFormString(formData.get("recommendations")),
+    tomorrowPriorities: formData.get("tomorrowPriorities"),
+    submit: formData.get("submit") === "true"
+  };
+}
+
+function optionalFormString(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function calculateHours(start: Date | undefined, end: Date | undefined, breakMinutes: number) {

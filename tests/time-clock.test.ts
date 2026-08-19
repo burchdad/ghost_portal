@@ -76,6 +76,12 @@ describe("time clock helpers", () => {
     expect(minutesBetween(new Date("2026-07-21T14:00:00.000Z"), new Date("2026-07-21T15:05:00.000Z"))).toBe(65);
     expect(formatDuration(65)).toBe("1h 05m");
   });
+
+  it("keeps invalid timer input from leaking NaN into the dashboard", () => {
+    expect(minutesBetween(new Date("not-a-date"), new Date("2026-07-21T15:05:00.000Z"))).toBe(0);
+    expect(activeElapsedMinutes(new Date("not-a-date"), new Date("2026-07-21T15:05:00.000Z"))).toBe(0);
+    expect(formatDuration(Number.NaN)).toBe("0h 00m");
+  });
 });
 
 describe("time clock workflow guards", () => {

@@ -35,16 +35,16 @@ describe("record-level authorization", () => {
     vi.clearAllMocks();
   });
 
-  it("denies Operations access to an unassigned client", async () => {
+  it("allows Operations to view an unassigned client through roster access", async () => {
     prismaMock.clientAccess.findUnique.mockResolvedValue(null);
 
-    await expect(canAccessClient(alex, "client_unassigned")).resolves.toBe(false);
+    await expect(canAccessClient(alex, "client_unassigned", "View")).resolves.toBe(true);
   });
 
-  it("denies Operations access after client access is revoked", async () => {
+  it("denies Operations edit access after client access is revoked", async () => {
     prismaMock.clientAccess.findUnique.mockResolvedValue(null);
 
-    await expect(canAccessClient(alex, "client_revoked")).resolves.toBe(false);
+    await expect(canAccessClient(alex, "client_revoked", "Edit")).resolves.toBe(false);
   });
 
   it("allows Operations access to an assigned client", async () => {

@@ -57,7 +57,8 @@ export function isFounder(user: Pick<AuthzUser, "role">) {
 }
 
 export async function canAccessClient(user: AuthzUser, clientId: string, level: AccessLevel = "View") {
-  if (isFounder(user) || hasPermission(user, "clients:read:all")) return true;
+  if (isFounder(user) || hasPermission(user, "clients:manage")) return true;
+  if (level === "View" && hasPermission(user, "clients:read:all")) return true;
   if (!hasPermission(user, "clients:read:assigned")) return false;
 
   const access = await getPrisma().clientAccess.findUnique({

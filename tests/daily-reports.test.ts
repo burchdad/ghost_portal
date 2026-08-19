@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { submitDailyReport } from "@/server/actions/reports";
+import { submitDailyReportFormAction } from "@/server/actions/daily-report-form";
 
 const prismaMock = {
   dailyReport: {
@@ -56,6 +57,27 @@ describe("daily report workflow", () => {
         submit: true
       })
     ).rejects.toThrow("submitted report already exists");
+  });
+
+  it("returns duplicate report errors to the form instead of throwing", async () => {
+    prismaMock.dailyReport.findUnique.mockResolvedValue({ id: "report_1", status: "Submitted" });
+    const form = new FormData();
+    form.set("reportDate", "2026-07-20");
+    form.set("shiftStart", "2026-07-20T09:00:00.000Z");
+    form.set("shiftEnd", "2026-07-20T17:00:00.000Z");
+    form.set("breakMinutes", "30");
+    form.set("completed", "Completed onboarding");
+    form.set("inProgress", "Tasks");
+    form.set("tomorrowPriorities", "Follow ups");
+    form.set("submit", "true");
+
+    const result = await submitDailyReportFormAction({ status: "idle" }, form);
+
+    expect(result).toEqual({
+      status: "error",
+      message: "A submitted report already exists for this work date."
+    });
+    expect(prismaMock.dailyReport.upsert).not.toHaveBeenCalled();
   });
 
   it("rejects impossible shift hours", async () => {

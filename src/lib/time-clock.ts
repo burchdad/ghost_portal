@@ -1,4 +1,5 @@
 export function minutesBetween(start: Date, end: Date) {
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return 0;
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60000));
 }
 
@@ -17,7 +18,7 @@ export function activeElapsedMinutes(startedAt: Date, now = new Date(), breakMin
 }
 
 export function formatDuration(minutes: number) {
-  const safe = Math.max(0, Math.floor(minutes));
+  const safe = Number.isFinite(minutes) ? Math.max(0, Math.floor(minutes)) : 0;
   const hours = Math.floor(safe / 60);
   const mins = safe % 60;
   return `${hours}h ${String(mins).padStart(2, "0")}m`;

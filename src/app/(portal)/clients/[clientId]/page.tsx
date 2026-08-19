@@ -85,7 +85,10 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
     );
   }
 
-  const allowed = await canAccessClient(user, clientId);
+  const [allowed, canEditClient] = await Promise.all([
+    canAccessClient(user, clientId),
+    canAccessClient(user, clientId, "Edit")
+  ]);
   if (!allowed) redirect("/access-denied");
 
   const [client, users] = await Promise.all([
@@ -108,11 +111,17 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
         <Card>
           <h3 className="font-semibold">Operational notes</h3>
           <p className="mt-3 text-sm leading-6 text-white/58">{visibleClient.operationalNotes ?? "No notes recorded."}</p>
-          <form action={updateClientOperationalNotesAction} className="mt-4 space-y-3">
-            <input type="hidden" name="clientId" value={visibleClient.id} />
-            <textarea name="operationalNotes" required defaultValue={visibleClient.operationalNotes ?? ""} className="min-h-28 w-full rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
-            <Button>Save operational update</Button>
-          </form>
+          {canEditClient ? (
+            <form action={updateClientOperationalNotesAction} className="mt-4 space-y-3">
+              <input type="hidden" name="clientId" value={visibleClient.id} />
+              <textarea name="operationalNotes" required defaultValue={visibleClient.operationalNotes ?? ""} className="min-h-28 w-full rounded-lg border border-white/10 bg-black/24 p-3 text-sm" />
+              <Button>Save operational update</Button>
+            </form>
+          ) : (
+            <p className="mt-4 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-white/52">
+              View-only access. Ask Stephen for edit access before changing client notes.
+            </p>
+          )}
         </Card>
         <Card>
           <h3 className="font-semibold">Founder-only notes</h3>
