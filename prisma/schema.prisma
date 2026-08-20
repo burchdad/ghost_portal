@@ -555,6 +555,10 @@ model Lead {
   missionControlStage    String?
   missionControlPayload  Json?
   missionControlSyncedAt DateTime?
+  missionControlSyncErrorCode String?
+  missionControlSyncErrorMessage String?
+  missionControlLastAttemptAt DateTime?
+  missionControlSyncAttempts Int                      @default(0)
   ghostCrmStatus         String                   @default("Not Synced")
   ghostCrmExternalId     String?
   ghostCrmPayload        Json?
@@ -563,6 +567,7 @@ model Lead {
   ghostCrmSyncAttempts   Int                      @default(0)
   needsStephenReview     Boolean                  @default(false)
   needsStephenReason     String?
+  isTestRecord           Boolean                  @default(false)
   valueSuggestionRange   String?
   previousEmailHistory   String?
   previousCallHistory    String?
@@ -601,6 +606,7 @@ model Lead {
   @@index([leadSource])
   @@index([handoffStatus, missionControlStatus])
   @@index([ghostCrmStatus, ghostCrmSyncedAt])
+  @@index([isTestRecord, archivedAt])
 }
 
 model CallActivity {

@@ -170,6 +170,80 @@ export async function reviewTimeCorrectionAction(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function adminCloseOpenShiftAction(formData: FormData) {
+  const user = await requirePermission("reports:review");
+  const parsed = z.object({
+    shiftId: z.string().min(1),
+    endedAt: z.coerce.date(),
+    note: z.string().min(3).max(500)
+  }).parse({
+    shiftId: formData.get("shiftId"),
+    endedAt: formData.get("endedAt"),
+    note: formData.get("note")
+  });
+
+  const prisma = getPrisma();
+  const shift = await prisma.workShift.findUnique({
+    where: { id: parsed.shiftId },
+    include: { breaks: true, user: true }
+  });
+  if (!shift) throw new Error("Shift not found.");
+  if (shift.status === "Completed") throw new Error("This shift is already completed.");
+  if (parsed.endedAt < shift.startedAt) throw new Error("Clock-out time must be after clock-in time.");
+
+  let breakMinutes = shift.breakMinutes;
+  const openBreak = shift.breaks.find((item) => !item.endedAt);
+  const operations = [];
+  if (openBreak) {
+    const durationMinutes = minutesBetween(openBreak.startedAt, parsed.endedAt);
+    breakMinutes += durationMinutes;
+    operations.push(prisma.workBreak.update({ where: { id: openBreak.id }, data: { endedAt: parsed.endedAt, durationMinutes } }));
+  }
+  const totals = calculateShiftMinutes({ startedAt: shift.startedAt, endedAt: parsed.endedAt, breakMinutes });
+  operations.push(prisma.workShift.update({
+    where: { id: shift.id },
+    data: {
+      endedAt: parsed.endedAt,
+      ...totals,
+      status: "Completed",
+      correctionStatus: "Approved"
+    }
+  }));
+  operations.push(prisma.timeCorrectionRequest.create({
+    data: {
+      shiftId: shift.id,
+      requesterId: shift.userId,
+      requestedEndTime: parsed.endedAt,
+      requestedBreakDuration: totals.breakMinutes,
+      reason: "Admin clock-out repair",
+      supportingNote: parsed.note,
+      status: "Approved",
+      founderComment: parsed.note,
+      reviewedById: user.id,
+      reviewedAt: new Date()
+    }
+  }));
+  await prisma.$transaction(operations);
+  await Promise.all([
+    writeAuditLog({
+      userId: user.id,
+      action: "time.admin_shift_closed",
+      entity: "WorkShift",
+      entityId: shift.id,
+      before: { status: shift.status, endedAt: shift.endedAt },
+      after: { endedAt: parsed.endedAt, ...totals, note: parsed.note }
+    }),
+    recordActivity({
+      actorId: user.id,
+      action: "repaired time clock shift",
+      target: `${shift.user.preferredName ?? shift.user.name}: ${Math.round(totals.netMinutes / 60 * 100) / 100} hours`
+    })
+  ]);
+  revalidateTimeClockPaths();
+  revalidatePath("/admin/time-clock");
+  revalidatePath("/admin/ops-health");
+}
+
 function readableTimeClockError(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
   return fallback;

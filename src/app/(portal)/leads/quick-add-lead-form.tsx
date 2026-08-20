@@ -40,6 +40,10 @@ export function QuickAddLeadForm({
       <input name="industry" placeholder="Industry" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
       <input name="location" placeholder="Location" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm" />
       <textarea name="initialNote" placeholder="Initial note" className="min-h-20 rounded-lg border border-white/10 bg-black/24 p-3 text-sm lg:col-span-4" />
+      <label className="flex items-center gap-2 text-sm text-white/62 lg:col-span-4">
+        <input name="isTestRecord" type="checkbox" />
+        QA/test record
+      </label>
       {state.status !== "idle" ? (
         <p className={`rounded-lg border p-3 text-sm lg:col-span-4 ${state.status === "success" ? "border-accent/30 bg-accent/10 text-accent" : "border-danger/30 bg-danger/10 text-danger"}`}>
           {state.message}

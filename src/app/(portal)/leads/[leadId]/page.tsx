@@ -8,7 +8,7 @@ import { canAccessLead, minimizeLeadForUser, requireUser } from "@/server/permis
 import { hasPermission } from "@/server/permissions/roles";
 import { getPrisma } from "@/server/db/prisma";
 import { grantLeadAccessAction, revokeLeadAccessAction } from "@/server/workflows/record-access";
-import { logCallActivityAction, requestPricingApprovalAction, requestStephenLeadReviewAction, sendLeadToMissionControlAction, syncLeadToGhostCrmAction, updateLeadOperationalAction, updateLeadQualificationAction } from "@/server/workflows/leads";
+import { logCallActivityAction, requestPricingApprovalAction, requestStephenLeadReviewAction, sendLeadToMissionControlAction, syncLeadToGhostCrmAction, updateLeadOperationalAction, updateLeadQualificationAction, updateLeadTestRecordAction } from "@/server/workflows/leads";
 import { CopyContactButton } from "./copy-contact-button";
 
 const leadSources = ["Manual Cold Call", "Vega", "Referral", "Facebook", "Networking", "Website Inquiry", "Email", "Partner", "Existing Relationship", "Other"];
@@ -41,6 +41,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
   const visibleLead = minimizeLeadForUser(user, lead);
   const lastActivity = lead.callActivities[0];
   const canSyncCrm = hasPermission(user, "crm:sync");
+  const syncChecklist = buildSyncChecklist(visibleLead, latestConversationSummary(lead.callActivities));
 
   return (
     <PageSection eyebrow="Lead workspace" title={visibleLead.company} description="Progressively enrich raw prospects, log calls, and hand off only when enough signal exists.">
@@ -104,6 +105,24 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
               </div>
             </form>
           </Card>
+
+          <Card>
+            <h3 className="font-semibold">Sync Checklist</h3>
+            <div className="mt-4 space-y-2">
+              {syncChecklist.map((item) => (
+                <div key={item.label} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium">{item.label}</span>
+                    <Badge>{item.done ? "Ready" : "Needs work"}</Badge>
+                  </div>
+                  <p className={`mt-1 text-xs leading-5 ${item.done ? "text-white/46" : "text-warning"}`}>{item.detail}</p>
+                </div>
+              ))}
+            </div>
+            {visibleLead.isTestRecord ? (
+              <p className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning">This lead is marked as a QA/test record and is excluded from real pipeline health counts.</p>
+            ) : null}
+          </Card>
         </div>
 
         <div className="space-y-5">
@@ -135,6 +154,17 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
               </div>
               <Button className="md:col-span-2" variant="accent">Save basic information</Button>
             </form>
+            {user.role === "Founder" ? (
+              <form id="qa-record-form" action={updateLeadTestRecordAction} className="mt-3 flex flex-wrap gap-2 border-t border-white/10 pt-3">
+                <input type="hidden" name="leadId" value={visibleLead.id} />
+                <label className="flex min-h-8 items-center gap-2 text-sm text-white/62">
+                  <input name="isTestRecord" type="checkbox" defaultChecked={visibleLead.isTestRecord} />
+                  QA/test record
+                </label>
+                <Button size="sm" variant="outline">Save QA Flag</Button>
+                <Button size="sm" name="archive" value="on" variant="outline">Archive QA/Test Lead</Button>
+              </form>
+            ) : null}
           </Card>
 
           <Card>
@@ -210,6 +240,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
                 <p>Handoff: {handoffLabel(visibleLead.handoffStatus)}</p>
                 <p>Mission Control: {visibleLead.missionControlStatus}</p>
                 <p>Stage: {visibleLead.missionControlStage ?? "Not set"}</p>
+                <p>Attempts: {visibleLead.missionControlSyncAttempts}</p>
+                {visibleLead.missionControlLastAttemptAt ? <p>Last attempt: {visibleLead.missionControlLastAttemptAt.toLocaleString("en-US")}</p> : null}
+                {visibleLead.missionControlSyncErrorMessage ? <p className="text-danger">Issue: {visibleLead.missionControlSyncErrorMessage}</p> : null}
               </div>
               <form action={sendLeadToMissionControlAction} className="mt-4 grid gap-3">
                 <input type="hidden" name="leadId" value={visibleLead.id} />
@@ -320,6 +353,67 @@ function handoffLabel(value: string) {
   if (value === "SentToMissionControl") return "Sent to Mission Control";
   if (value === "ReturnedForInformation") return "Returned for Information";
   return "Ops Portal Only";
+}
+
+function buildSyncChecklist(
+  lead: {
+    company: string;
+    contactName: string | null;
+    contactPhone: string | null;
+    contactEmail: string | null;
+    leadSource: string | null;
+    needDiscovered: string[];
+    interestLevel: string;
+    followUpDate: Date | null;
+    appointmentStatus: string | null;
+    nextAction: string | null;
+    doNotContact: boolean;
+    ghostCrmStatus: string;
+    missionControlStatus: string;
+    isTestRecord: boolean;
+  },
+  conversationSummary: string
+) {
+  const hasContact = Boolean(lead.contactPhone || lead.contactEmail);
+  const discoveryMissing = [
+    !lead.company && !lead.contactName ? "business/contact" : null,
+    !hasContact ? "phone/email" : null,
+    !lead.leadSource ? "source" : null,
+    !conversationSummary.trim() ? "conversation summary" : null,
+    !lead.needDiscovered.length ? "need" : null,
+    !lead.interestLevel || lead.interestLevel === "Unknown" ? "interest" : null,
+    !lead.nextAction ? "next action" : null,
+    !lead.followUpDate && !lead.appointmentStatus ? "follow-up/appointment" : null,
+    typeof lead.doNotContact !== "boolean" ? "do-not-contact" : null
+  ].filter(Boolean);
+
+  return [
+    {
+      label: "Ops Portal saved",
+      done: Boolean(lead.company),
+      detail: lead.isTestRecord ? "Saved as QA/test data." : "Saved as a real pipeline record."
+    },
+    {
+      label: "Contact method captured",
+      done: hasContact,
+      detail: hasContact ? "Phone or email is available for follow-up." : "Add a phone number or email before handoff."
+    },
+    {
+      label: "Discovery minimums",
+      done: discoveryMissing.length === 0,
+      detail: discoveryMissing.length ? `Missing: ${discoveryMissing.join(", ")}.` : "Required discovery fields are complete."
+    },
+    {
+      label: "GhostCRM synced",
+      done: lead.ghostCrmStatus === "Synced" || lead.isTestRecord,
+      detail: lead.isTestRecord ? "Skipped for QA/test data." : `GhostCRM status: ${lead.ghostCrmStatus}.`
+    },
+    {
+      label: "Mission Control sent",
+      done: lead.missionControlStatus === "Sent to Mission Control" || lead.isTestRecord,
+      detail: lead.isTestRecord ? "Skipped for QA/test data." : `Mission Control status: ${lead.missionControlStatus}.`
+    }
+  ];
 }
 
 function callAngle(lead: { industry: string | null; website: string | null; needDiscovered: string[]; leadSource: string | null }) {

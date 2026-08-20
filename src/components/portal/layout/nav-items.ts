@@ -6,6 +6,7 @@ import {
   Clock3,
   FileText,
   Folder,
+  Gauge,
   Handshake,
   LayoutDashboard,
   LifeBuoy,
@@ -47,6 +48,8 @@ export const portalNavItems = [
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Support Agent", href: "/support", icon: LifeBuoy, permission: "support:create" },
   { label: "Mission Control Support", href: "/admin/support", icon: MessageSquareText, permission: "support:triage" },
+  { label: "Ops Health", href: "/admin/ops-health", icon: Gauge, permission: "admin:access" },
+  { label: "Time Clock", href: "/admin/time-clock", icon: Clock3, permission: "reports:review" },
   { label: "Settings", href: "/settings", icon: Settings },
   { label: "Pricing Workshop", href: "/admin/pricing-workshop", icon: PackageOpen, permission: "pricing:manage" },
   { label: "Admin", href: "/admin/users", icon: MessageSquareText, permission: "admin:access" }

@@ -11,7 +11,7 @@ import { hasPermission } from "@/server/permissions/roles";
 import { QuickAddLeadForm } from "./quick-add-lead-form";
 
 const leadSources = ["Manual Cold Call", "Vega", "Referral", "Facebook", "Networking", "Website Inquiry", "Email", "Partner", "Existing Relationship", "Other"];
-const filters = ["New", "Ready to Call", "No Answer", "Follow-Up Due", "Interested", "Sales-Ready", "Qualified", "Sent to Mission Control", "Returned for Information", "Meeting Booked", "Do Not Contact"];
+const filters = ["New", "Ready to Call", "No Answer", "Follow-Up Due", "Interested", "Sales-Ready", "Qualified", "Sent to Mission Control", "Returned for Information", "Meeting Booked", "Do Not Contact", "QA/Test"];
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ filter?: string; q?: string }> }) {
   const user = await requireUser();
@@ -20,8 +20,8 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const query = (params.q ?? "").trim();
   const canCreate = hasPermission(user, "leads:manage") || hasPermission(user, "leads:update:assigned");
   const baseWhere: Prisma.LeadWhereInput = user.role === "Founder"
-    ? { archivedAt: null }
-    : { archivedAt: null, access: { some: { userId: user.id } } };
+    ? { archivedAt: null, ...whereForTestFilter(filter) }
+    : { archivedAt: null, isTestRecord: false, access: { some: { userId: user.id } } };
   const [leads, metricLeads, users] = await Promise.all([
     getPrisma().lead.findMany({
       where: { ...baseWhere, ...whereForFilter(filter), ...whereForLeadSearch(query) },
@@ -109,6 +109,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
 function whereForFilter(filter: string): Prisma.LeadWhereInput {
   const now = new Date();
+  if (filter === "QA/Test") return {};
   if (filter === "Ready to Call") return { stage: { in: ["New", "ReadyToCall"] } };
   if (filter === "No Answer") return { callResult: "No Answer" };
   if (filter === "Follow-Up Due") return { followUpDate: { lte: now }, doNotContact: false };
@@ -120,6 +121,10 @@ function whereForFilter(filter: string): Prisma.LeadWhereInput {
   if (filter === "Meeting Booked") return { stage: "MeetingScheduled" };
   if (filter === "Do Not Contact") return { doNotContact: true };
   return { stage: { in: ["New", "ReadyToCall"] } };
+}
+
+function whereForTestFilter(filter: string): Prisma.LeadWhereInput {
+  return filter === "QA/Test" ? { isTestRecord: true } : { isTestRecord: false };
 }
 
 function whereForLeadSearch(query: string): Prisma.LeadWhereInput {

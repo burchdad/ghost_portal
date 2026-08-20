@@ -16,8 +16,8 @@ export default async function CrmPage() {
   const user = await requirePermission("crm:read");
   const canSync = hasPermission(user, "crm:sync");
   const baseWhere: Prisma.LeadWhereInput = user.role === "Founder"
-    ? { archivedAt: null }
-    : { archivedAt: null, access: { some: { userId: user.id } } };
+    ? { archivedAt: null, isTestRecord: false }
+    : { archivedAt: null, isTestRecord: false, access: { some: { userId: user.id } } };
 
   const [ghostCrm, opsLeads] = await Promise.all([
     getGhostCrmLeads(100),

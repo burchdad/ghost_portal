@@ -53,7 +53,8 @@ async function createLeadFromFormData(formData: FormData) {
     website: z.string().optional(),
     industry: z.string().optional(),
     location: z.string().optional(),
-    initialNote: z.string().optional()
+    initialNote: z.string().optional(),
+    isTestRecord: z.boolean().default(false)
   }).parse({
     company: formData.get("company"),
     contactMethod: formData.get("contactMethod"),
@@ -63,7 +64,8 @@ async function createLeadFromFormData(formData: FormData) {
     website: stringOrUndefined(formData.get("website")),
     industry: stringOrUndefined(formData.get("industry")),
     location: stringOrUndefined(formData.get("location")),
-    initialNote: stringOrUndefined(formData.get("initialNote"))
+    initialNote: stringOrUndefined(formData.get("initialNote")),
+    isTestRecord: formData.get("isTestRecord") === "on"
   });
   const contact = parseContactMethod(parsed.contactMethod);
   const assignedUserId = user.role === "Founder" || parsed.assignedUserId === user.id ? parsed.assignedUserId : user.id;
@@ -85,7 +87,8 @@ async function createLeadFromFormData(formData: FormData) {
       serviceInterest: "Unknown",
       stage: startCall ? "Attempted" : "ReadyToCall",
       notes: emptyToNull(parsed.initialNote),
-      nextAction: startCall ? "Log first call outcome" : "Ready for first call"
+      nextAction: startCall ? "Log first call outcome" : "Ready for first call",
+      isTestRecord: parsed.isTestRecord
     }
   });
 
@@ -110,6 +113,16 @@ async function createLeadFromFormData(formData: FormData) {
   });
 
   await writeAuditLog({ userId: user.id, action: "lead.created", entity: "Lead", entityId: lead.id, after: { company: lead.company } });
+  if (!parsed.isTestRecord && hasPermission(user, "crm:sync")) {
+    try {
+      await syncLeadRecordToGhostCrm({ ...lead, callActivities: [] }, user.id);
+    } catch (error) {
+      console.error("[leads.create.ghostcrm_autosync_failed]", {
+        leadId: lead.id,
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
   console.info("[leads.create.success]", {
     leadId: lead.id,
     company: lead.company,
@@ -486,10 +499,14 @@ export async function sendLeadToMissionControlAction(formData: FormData) {
         missionControlStatus,
         missionControlStage: stage,
         missionControlPayload: { ...payload, helperSync: jsonSyncResult } as Prisma.InputJsonValue,
-        missionControlSyncedAt: new Date(),
-        needsStephenReview: true,
+        missionControlSyncedAt: syncResult.status === "sent" ? new Date() : undefined,
+        missionControlLastAttemptAt: new Date(),
+        missionControlSyncAttempts: { increment: 1 },
+        missionControlSyncErrorCode: syncResult.status === "failed" ? "HELPER_ERROR" : null,
+        missionControlSyncErrorMessage: syncResult.status === "failed" ? syncResult.error : null,
+        needsStephenReview: syncResult.status === "failed" ? lead.needsStephenReview : true,
         needsStephenReason: syncResult.status === "failed"
-          ? `Mission Control sync failed: ${syncResult.error}`
+          ? lead.needsStephenReason
           : parsed.level === "qualified" ? "Promoted as qualified opportunity." : "Sent to Mission Control for discovery.",
         stage: parsed.level === "qualified" ? "Qualified" : "Discovery",
         nextAction: parsed.recommendedNextAction
@@ -534,6 +551,43 @@ export async function syncLeadToGhostCrmAction(formData: FormData) {
   await syncLeadRecordToGhostCrm(lead, user.id);
   revalidatePath("/crm");
   revalidatePath(`/leads/${lead.id}`);
+}
+
+export async function updateLeadTestRecordAction(formData: FormData) {
+  const user = await requireUser();
+  if (!hasPermission(user, "leads:manage")) throw new Error("Forbidden: leads:manage");
+  const parsed = z.object({
+    leadId: z.string().min(1),
+    isTestRecord: z.boolean().default(false),
+    archive: z.boolean().default(false)
+  }).parse({
+    leadId: formData.get("leadId"),
+    isTestRecord: formData.get("isTestRecord") === "on",
+    archive: formData.get("archive") === "on"
+  });
+
+  const before = await getPrisma().lead.findUnique({ where: { id: parsed.leadId } });
+  if (!before) throw new Error("Lead not found");
+
+  await getPrisma().lead.update({
+    where: { id: parsed.leadId },
+    data: {
+      isTestRecord: parsed.isTestRecord,
+      archivedAt: parsed.archive ? new Date() : before.archivedAt
+    }
+  });
+  await writeAuditLog({
+    userId: user.id,
+    action: parsed.archive ? "lead.qa_archived" : "lead.qa_flag_updated",
+    entity: "Lead",
+    entityId: parsed.leadId,
+    before: { isTestRecord: before.isTestRecord, archivedAt: before.archivedAt },
+    after: parsed
+  });
+  revalidatePath("/leads");
+  revalidatePath("/crm");
+  revalidatePath("/admin/ops-health");
+  revalidatePath(`/leads/${parsed.leadId}`);
 }
 
 export async function updateLeadCrmStageAction(formData: FormData) {
