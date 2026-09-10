@@ -4,10 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { decideDraftCommunicationAction, markDraftCommunicationSentAction } from "@/server/workflows/draft-communications";
 
 export default async function CommunicationDetailPage({ params }: { params: Promise<{ communicationId: string }> }) {
   const user = await requireUser();
+  const canReviewDrafts = hasPermission(user, "approvals:decide");
   const { communicationId } = await params;
   const draft = await getPrisma().draftCommunication.findUnique({
     where: { id: communicationId },
@@ -15,7 +17,7 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
   });
 
   if (!draft) notFound();
-  if (user.role !== "Founder" && draft.authorId !== user.id) redirect("/access-denied");
+  if (!canReviewDrafts && draft.authorId !== user.id) redirect("/access-denied");
 
   return (
     <PageSection eyebrow="Draft communication" title={draft.subject ?? draft.purpose} description={`Status: ${draft.status}`}>
@@ -36,7 +38,7 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
         </Card>
       </div>
 
-      {user.role === "Founder" && draft.status === "PendingApproval" ? (
+      {canReviewDrafts && draft.status === "PendingApproval" ? (
         <Card className="mt-5">
           <h3 className="font-semibold">Stephen Review</h3>
           <form action={decideDraftCommunicationAction} className="mt-4 grid gap-3">
@@ -52,7 +54,7 @@ export default async function CommunicationDetailPage({ params }: { params: Prom
         </Card>
       ) : null}
 
-      {draft.status === "Approved" && (draft.authorId === user.id || user.role === "Founder") ? (
+      {draft.status === "Approved" && (draft.authorId === user.id || canReviewDrafts) ? (
         <Card className="mt-5">
           <h3 className="font-semibold">Manual Send Outcome</h3>
           <form action={markDraftCommunicationSentAction} className="mt-4 grid gap-3">

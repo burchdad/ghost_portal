@@ -15,6 +15,13 @@ const stephen: AuthzUser = {
   role: "Founder"
 };
 
+const admin: AuthzUser = {
+  id: "user_admin",
+  name: "Alex Canto",
+  email: "alex@ghostai.solutions",
+  role: "Admin"
+};
+
 describe("role permissions", () => {
   it("allows Operations to update assigned tasks", () => {
     expect(hasPermission(alex, "tasks:update:assigned")).toBe(true);
@@ -57,5 +64,17 @@ describe("role permissions", () => {
     expect(hasPermission(stephen, "pricing:manage")).toBe(true);
     expect(hasPermission(stephen, "crm:read")).toBe(true);
     expect(hasPermission(stephen, "crm:sync")).toBe(true);
+  });
+
+  it("allows Admin to manage operations without founder-only financial, credential, or permission-matrix access", () => {
+    expect(hasPermission(admin, "admin:access")).toBe(true);
+    expect(hasPermission(admin, "users:manage")).toBe(true);
+    expect(hasPermission(admin, "clients:manage")).toBe(true);
+    expect(hasPermission(admin, "leads:manage")).toBe(true);
+    expect(hasPermission(admin, "reports:review")).toBe(true);
+    expect(hasPermission(admin, "approvals:decide")).toBe(true);
+    expect(hasPermission(admin, "permissions:manage")).toBe(false);
+    expect(hasPermission(admin, "credentials:read")).toBe(false);
+    expect(hasPermission(admin, "finance:read")).toBe(false);
   });
 });

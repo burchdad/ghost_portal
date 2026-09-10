@@ -19,10 +19,11 @@ export default async function TasksPage({
   const user = await requireUser();
   const filters = await searchParams;
   const canCreate = hasPermission(user, "tasks:create");
+  const canManageTasks = hasPermission(user, "tasks:manage");
   const [tasks, users, clients, leads, projects] = await Promise.all([
     getPrisma().task.findMany({
       where: {
-        ...(user.role === "Founder" ? { archivedAt: null } : { ownerId: user.id, archivedAt: null }),
+        ...(canManageTasks ? { archivedAt: null } : { ownerId: user.id, archivedAt: null }),
         ...(filters.status ? { status: filters.status as never } : {}),
         ...(filters.priority ? { priority: filters.priority as never } : {}),
         ...(filters.q
@@ -93,7 +94,7 @@ export default async function TasksPage({
             <DateTimePicker name="dueDate" label="Task due date" helper="Optional deadline shown in the assignee's timezone." timezone={user.timezone} optional />
             <select name="approverId" className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
               <option value="">Approver</option>
-              {users.filter((row) => row.role.name === "Founder").map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+              {users.filter((row) => row.role.name === "Founder" || row.role.name === "Admin").map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
             </select>
             <label className="flex h-10 items-center gap-2 text-sm text-white/64">
               <input name="approvalRequired" type="checkbox" /> Approval required

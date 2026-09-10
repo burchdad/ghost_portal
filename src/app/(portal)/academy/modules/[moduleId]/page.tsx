@@ -7,17 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { completeAcademyModuleAction, saveModuleNoteAction, submitEmployeeQuestionAction, submitKnowledgeCheckAction } from "@/server/workflows/academy";
 import { submitFeedbackAction } from "@/server/workflows/feedback";
 
 export default async function AcademyModulePage({ params }: { params: Promise<{ moduleId: string }> }) {
   const user = await requireUser();
+  const canManageAcademy = hasPermission(user, "academy:manage");
   const { moduleId } = await params;
   const courseModule = await getPrisma().courseModule.findFirst({
     where: {
       id: moduleId,
       archivedAt: null,
-      ...(user.role === "Founder" ? {} : { published: true, audienceRoles: { has: user.role } })
+      ...(canManageAcademy ? {} : { published: true, audienceRoles: { has: user.role } })
     },
     include: {
       course: { include: { path: true } },
@@ -40,13 +42,13 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
 
   if (!courseModule) notFound();
   const assigned = await getPrisma().learningPathAssignment.findFirst({ where: { userId: user.id, pathId: courseModule.course.pathId } });
-  if (user.role !== "Founder" && !assigned) redirect("/access-denied");
+  if (!canManageAcademy && !assigned) redirect("/access-denied");
 
   const completed = courseModule.completions.some((completion) => completion.moduleVersion === courseModule.version);
   const passed = courseModule.knowledgeCheck?.attempts.some((attempt) => attempt.status === "Passed") ?? false;
   const canComplete = (!courseModule.knowledgeCheckRequired || passed) && !completed;
   const siblingModules = await getPrisma().courseModule.findMany({
-    where: { courseId: courseModule.courseId, archivedAt: null, ...(user.role === "Founder" ? {} : { published: true, audienceRoles: { has: user.role } }) },
+    where: { courseId: courseModule.courseId, archivedAt: null, ...(canManageAcademy ? {} : { published: true, audienceRoles: { has: user.role } }) },
     orderBy: { sortOrder: "asc" },
     select: { id: true, title: true, sortOrder: true, completions: { where: { userId: user.id }, select: { id: true } } }
   });

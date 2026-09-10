@@ -6,23 +6,27 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { createDraftCommunicationAction } from "@/server/workflows/draft-communications";
 
 export default async function CommunicationsPage() {
   const user = await requireUser();
+  const canReviewDrafts = hasPermission(user, "approvals:decide");
+  const canReadAllClients = hasPermission(user, "clients:read:all");
+  const canManageLeads = hasPermission(user, "leads:manage");
   const [drafts, clients, leads] = await Promise.all([
     getPrisma().draftCommunication.findMany({
-      where: user.role === "Founder" ? {} : { authorId: user.id },
+      where: canReviewDrafts ? {} : { authorId: user.id },
       include: { author: true, client: true, lead: true },
       orderBy: { updatedAt: "desc" },
       take: 50
     }),
     getPrisma().client.findMany({
-      where: user.role === "Founder" ? { archivedAt: null } : { archivedAt: null, access: { some: { userId: user.id } } },
+      where: canReadAllClients ? { archivedAt: null } : { archivedAt: null, access: { some: { userId: user.id } } },
       orderBy: { company: "asc" }
     }),
     getPrisma().lead.findMany({
-      where: user.role === "Founder" ? { archivedAt: null } : { archivedAt: null, access: { some: { userId: user.id } } },
+      where: canManageLeads ? { archivedAt: null } : { archivedAt: null, access: { some: { userId: user.id } } },
       orderBy: { company: "asc" }
     })
   ]);

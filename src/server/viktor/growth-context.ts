@@ -23,7 +23,9 @@ const warmStages: LeadStage[] = ["Interested", "Qualified", "MeetingScheduled", 
 
 export async function buildViktorGrowthContext(user: SessionUser): Promise<ViktorGrowthContext> {
   const prisma = getPrisma();
-  const canReadAll = user.role === "Founder" || hasPermission(user, "leads:manage");
+  const canReadAll = hasPermission(user, "leads:manage");
+  const canReviewReports = hasPermission(user, "reports:review");
+  const canDecideApprovals = hasPermission(user, "approvals:decide");
   const leadWhere: Prisma.LeadWhereInput = canReadAll
     ? { archivedAt: null, doNotContact: false }
     : { archivedAt: null, doNotContact: false, assignedUserId: user.id };
@@ -72,13 +74,13 @@ export async function buildViktorGrowthContext(user: SessionUser): Promise<Vikto
       take: 12
     }),
     prisma.dailyReport.findMany({
-      where: user.role === "Founder" ? {} : { userId: user.id },
+      where: canReviewReports ? {} : { userId: user.id },
       select: { reportDate: true, leadActivity: true, clientUpdates: true, blockers: true, recommendations: true },
       orderBy: { reportDate: "desc" },
       take: 8
     }),
     prisma.approval.findMany({
-      where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id },
+      where: canDecideApprovals ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id },
       select: { id: true, summary: true, priority: true, status: true, deadline: true },
       orderBy: [{ priority: "desc" }, { deadline: "asc" }],
       take: 8

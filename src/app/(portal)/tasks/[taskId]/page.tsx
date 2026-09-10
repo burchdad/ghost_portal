@@ -6,6 +6,7 @@ import { DateTimePicker } from "@/components/portal/date-time-controls";
 import { TaskStatusForm } from "@/components/portal/task-status-form";
 import { getPrisma } from "@/server/db/prisma";
 import { canModifyTask, requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { createApprovalRequestAction } from "@/server/workflows/approvals";
 import { addTaskCommentAction, archiveTaskAction, restoreTaskAction, updateTaskStatusAction } from "@/server/workflows/tasks";
 import { createLocalFileMetadataAction } from "@/server/workflows/files";
@@ -27,7 +28,8 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
   });
 
   if (!task) notFound();
-  if (user.role !== "Founder" && task.ownerId !== user.id) redirect("/access-denied");
+  const canManageTasks = hasPermission(user, "tasks:manage");
+  if (!canManageTasks && task.ownerId !== user.id) redirect("/access-denied");
 
   return (
     <PageSection eyebrow="Task" title={task.title} description={task.description ?? "No description recorded."}>
@@ -48,7 +50,7 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ tas
           {canModifyTask(user, task) ? (
             <TaskStatusForm taskId={task.id} currentStatus={task.status as TaskStatusValue} unresolvedApprovalCount={task.approvals.length} action={updateTaskStatusAction} />
           ) : null}
-          {user.role === "Founder" ? (
+          {canManageTasks ? (
             <form action={task.archivedAt ? restoreTaskAction : archiveTaskAction} className="mt-3">
               <input type="hidden" name="taskId" value={task.id} />
               <Button className="w-full" variant="outline">{task.archivedAt ? "Restore task" : "Archive task"}</Button>

@@ -4,14 +4,16 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 
 export default async function PoliciesPage() {
   const user = await requireUser();
+  const canManageAcademy = hasPermission(user, "academy:manage");
   const policies = await getPrisma().courseModule.findMany({
     where: {
       contentType: "Policy",
       archivedAt: null,
-      ...(user.role === "Founder" ? {} : { published: true, audienceRoles: { has: user.role } })
+      ...(canManageAcademy ? {} : { published: true, audienceRoles: { has: user.role } })
     },
     include: { completions: { where: { userId: user.id } } },
     orderBy: { title: "asc" }

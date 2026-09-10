@@ -7,19 +7,21 @@ import { formatDuration } from "@/lib/time-clock";
 import { safeTimezone } from "@/lib/timezones";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 
 export default async function DailyReportsPage() {
   const user = await requireUser();
   const prisma = getPrisma();
+  const canReviewReports = hasPermission(user, "reports:review");
   const [reports, shifts] = await Promise.all([
     prisma.dailyReport.findMany({
-      where: user.role === "Founder" ? {} : { userId: user.id },
+      where: canReviewReports ? {} : { userId: user.id },
       include: { user: true },
       orderBy: { reportDate: "desc" },
       take: 30
     }),
     prisma.workShift.findMany({
-      where: user.role === "Founder" ? {} : { userId: user.id },
+      where: canReviewReports ? {} : { userId: user.id },
       include: { user: true },
       orderBy: { startedAt: "desc" },
       take: 30

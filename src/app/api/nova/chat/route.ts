@@ -76,27 +76,32 @@ export async function POST(request: Request) {
 
 async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
   const prisma = getPrisma();
-  const canSeeAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
+  const canSeeAllClients = hasPermission(user, "clients:read:all");
   const canSeeAssignedClients = hasPermission(user, "clients:read:assigned");
+  const canManageTasks = hasPermission(user, "tasks:manage");
+  const canDecideApprovals = hasPermission(user, "approvals:decide");
+  const canManageLeads = hasPermission(user, "leads:manage");
   const canReadKnowledge = hasPermission(user, "knowledge:read");
   const canReadPricing = hasPermission(user, "pricing:read");
   const canReadProjects = hasPermission(user, "projects:read:assigned");
+  const canReviewReports = hasPermission(user, "reports:review");
+  const canTriageSupport = hasPermission(user, "support:triage");
   const [summary, tasks, approvals, leads, clients, projects, pricing, sops, knowledge, dailyReports, files, supportTickets] = await Promise.all([
     buildNovaSummary(user),
     prisma.task.findMany({
-      where: user.role === "Founder" ? { archivedAt: null } : { ownerId: user.id, archivedAt: null },
+      where: canManageTasks ? { archivedAt: null } : { ownerId: user.id, archivedAt: null },
       select: { id: true, title: true, status: true, priority: true, dueDate: true },
       orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
       take: 6
     }),
     prisma.approval.findMany({
-      where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id },
+      where: canDecideApprovals ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id },
       select: { id: true, summary: true, status: true, priority: true, deadline: true },
       orderBy: [{ priority: "desc" }, { deadline: "asc" }],
       take: 5
     }),
     prisma.lead.findMany({
-      where: user.role === "Founder" ? { archivedAt: null } : { assignedUserId: user.id, archivedAt: null },
+      where: canManageLeads ? { archivedAt: null } : { assignedUserId: user.id, archivedAt: null },
       select: { id: true, company: true, contactName: true, stage: true, interestLevel: true, nextAction: true, followUpDate: true, missionControlStatus: true },
       orderBy: [{ followUpDate: "asc" }, { updatedAt: "desc" }],
       take: 6
@@ -112,7 +117,7 @@ async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getC
       take: 6
     }),
     prisma.project.findMany({
-      where: user.role === "Founder" ? { archivedAt: null } : canReadProjects ? { archivedAt: null, tasks: { some: { ownerId: user.id } } } : { id: "__no_project_access__" },
+      where: canManageTasks ? { archivedAt: null } : canReadProjects ? { archivedAt: null, tasks: { some: { ownerId: user.id } } } : { id: "__no_project_access__" },
       select: { id: true, name: true, status: true, timeline: true },
       orderBy: { updatedAt: "desc" },
       take: 5
@@ -142,19 +147,19 @@ async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getC
         })
       : Promise.resolve([]),
     prisma.dailyReport.findMany({
-      where: user.role === "Founder" ? {} : { userId: user.id },
+      where: canReviewReports ? {} : { userId: user.id },
       select: { id: true, reportDate: true, status: true, blockers: true, waitingOnStephen: true, tomorrowPriorities: true },
       orderBy: { reportDate: "desc" },
       take: 4
     }),
     prisma.fileAsset.findMany({
-      where: user.role === "Founder" ? { archivedAt: null } : { archivedAt: null, OR: [{ uploaderId: user.id }, { access: { some: { userId: user.id } } }] },
+      where: hasPermission(user, "admin:access") ? { archivedAt: null } : { archivedAt: null, OR: [{ uploaderId: user.id }, { access: { some: { userId: user.id } } }] },
       select: { id: true, name: true, folder: true, visibility: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
       take: 5
     }),
     prisma.feedbackSubmission.findMany({
-      where: user.role === "Founder" ? { status: { in: ["New", "Reviewing", "Planned", "InProgress"] } } : { submittedById: user.id },
+      where: canTriageSupport ? { status: { in: ["New", "Reviewing", "Planned", "InProgress"] } } : { submittedById: user.id },
       select: { id: true, title: true, type: true, status: true, severity: true },
       orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
       take: 5
@@ -165,6 +170,7 @@ async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getC
     user: `${user.preferredName ?? user.name} (${user.role})`,
     summary,
     role: user.role,
+    canTriageSupport,
     tasks: tasks.map((task) => ({ label: task.title, href: `/tasks/${task.id}`, detail: `${task.status} | ${task.priority} | due ${task.dueDate?.toISOString() ?? "not set"}` })),
     approvals: approvals.map((approval) => ({ label: approval.summary, href: `/approvals/${approval.id}`, detail: `${approval.status} | ${approval.priority} | due ${approval.deadline?.toISOString() ?? "not set"}` })),
     leads: leads.map((lead) => ({ label: lead.company, href: `/leads/${lead.id}`, detail: `${lead.contactName ?? "Unknown"} | ${lead.stage} | ${lead.interestLevel} | ${lead.missionControlStatus} | ${lead.nextAction ?? "no next action"} | follow-up ${lead.followUpDate?.toISOString() ?? "not set"}` })),
@@ -175,7 +181,7 @@ async function buildNovaContext(user: NonNullable<Awaited<ReturnType<typeof getC
     knowledge: knowledge.map((article) => ({ label: article.title, href: `/knowledge/${article.id}`, detail: `${article.category} | ${article.requiredReading ? "required" : "reference"}` })),
     dailyReports: dailyReports.map((report) => ({ label: report.reportDate.toISOString().slice(0, 10), href: `/daily-reports/${report.id}`, detail: `${report.status} | waiting: ${report.waitingOnStephen ?? "none"} | tomorrow: ${report.tomorrowPriorities}` })),
     files: files.map((file) => ({ label: file.name, href: `/files`, detail: `${file.folder} | ${file.visibility} | updated ${file.updatedAt.toISOString()}` })),
-    supportTickets: supportTickets.map((ticket) => ({ label: ticket.title, href: user.role === "Founder" ? `/admin/support` : `/support`, detail: `${ticket.type} | ${ticket.status} | ${ticket.severity}` }))
+    supportTickets: supportTickets.map((ticket) => ({ label: ticket.title, href: canTriageSupport ? `/admin/support` : `/support`, detail: `${ticket.type} | ${ticket.status} | ${ticket.severity}` }))
   };
 }
 
@@ -271,7 +277,7 @@ function buildNovaActions(message: string, context: Awaited<ReturnType<typeof bu
     add({ label: "Create daily report", href: "/daily-reports/new", detail: "Submit end-of-day work details." });
   }
   if (mentions(lower, ["support", "bug", "issue", "broken", "feedback"])) {
-    add({ label: context.role === "Founder" ? "Open support queue" : "Create support ticket", href: context.role === "Founder" ? "/admin/support" : "/support", detail: "Track product issues and improvement requests." });
+    add({ label: context.canTriageSupport ? "Open support queue" : "Create support ticket", href: context.canTriageSupport ? "/admin/support" : "/support", detail: "Track product issues and improvement requests." });
     context.supportTickets.slice(0, 2).forEach(add);
   }
   if (mentions(lower, ["file", "document", "asset", "upload"])) {

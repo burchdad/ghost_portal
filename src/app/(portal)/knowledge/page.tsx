@@ -4,11 +4,13 @@ import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 
 export default async function KnowledgePage() {
   const user = await requireUser();
+  const canManageKnowledge = hasPermission(user, "knowledge:manage");
   const articles = await getPrisma().knowledgeArticle.findMany({
-    where: user.role === "Founder" ? { archivedAt: null } : { archivedAt: null, status: "Published", visibleToRoles: { has: user.role } },
+    where: canManageKnowledge ? { archivedAt: null } : { archivedAt: null, status: "Published", visibleToRoles: { has: user.role } },
     orderBy: [{ category: "asc" }, { updatedAt: "desc" }]
   });
 

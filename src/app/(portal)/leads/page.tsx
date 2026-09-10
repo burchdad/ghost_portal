@@ -19,9 +19,12 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const filter = params.filter ?? "New";
   const query = (params.q ?? "").trim();
   const canCreate = hasPermission(user, "leads:manage") || hasPermission(user, "leads:update:assigned");
+  const canManageLeads = hasPermission(user, "leads:manage");
   const baseWhere: Prisma.LeadWhereInput = user.role === "Founder"
     ? { archivedAt: null, ...whereForTestFilter(filter) }
-    : { archivedAt: null, isTestRecord: false, access: { some: { userId: user.id } } };
+    : canManageLeads
+      ? { archivedAt: null, ...whereForTestFilter(filter) }
+      : { archivedAt: null, isTestRecord: false, access: { some: { userId: user.id } } };
   const [leads, metricLeads, users] = await Promise.all([
     getPrisma().lead.findMany({
       where: { ...baseWhere, ...whereForFilter(filter), ...whereForLeadSearch(query) },
@@ -39,7 +42,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       },
       take: 500
     }),
-    getPrisma().user.findMany({ where: { status: "Active", role: { name: { in: ["Founder", "Operations", "Sales"] } } }, include: { role: true }, orderBy: { name: "asc" } })
+    getPrisma().user.findMany({ where: { status: "Active", role: { name: { in: ["Founder", "Admin", "Operations", "Sales"] } } }, include: { role: true }, orderBy: { name: "asc" } })
   ]);
   const sourceMetrics = buildSourceMetrics(metricLeads);
   const queueMetrics = buildQueueMetrics(metricLeads);

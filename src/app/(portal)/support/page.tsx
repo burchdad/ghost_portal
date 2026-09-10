@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getPrisma } from "@/server/db/prisma";
 import { requirePermission } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { SupportTicketForm } from "./support-ticket-form";
 
 const ticketTypes = ["Bug", "WorkflowIssue", "FeatureRequest", "ConfusingInterface", "MissingInformation", "NovaSuggestion", "MissionControlSuggestion", "Other"];
@@ -11,9 +12,10 @@ const missionAreas = ["Ops Portal", "Ghost Academy", "Nova", "Mission Control", 
 
 export default async function SupportPage({ searchParams }: { searchParams?: Promise<{ submitted?: string }> }) {
   const user = await requirePermission("support:create");
+  const canTriageSupport = hasPermission(user, "support:triage");
   const params = await searchParams;
   const tickets = await getPrisma().feedbackSubmission.findMany({
-    where: user.role === "Founder" ? {} : { submittedById: user.id },
+    where: canTriageSupport ? {} : { submittedById: user.id },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 50
   });

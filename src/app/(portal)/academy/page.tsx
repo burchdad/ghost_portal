@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 
 export default async function AcademyPage() {
   const user = await requireUser();
+  const canManageAcademy = hasPermission(user, "academy:manage");
   const assignment = await getPrisma().learningPathAssignment.findFirst({
     where: { userId: user.id, status: { not: "Archived" } },
     include: {
@@ -35,7 +37,7 @@ export default async function AcademyPage() {
       <PageSection eyebrow="Ghost Academy" title="My Learning" description="Assigned learning paths, SOPs, policies, and role training.">
         <Card>
           <p className="text-sm text-white/58">No learning path is assigned yet.</p>
-          {user.role === "Founder" ? (
+          {canManageAcademy ? (
             <Button asChild className="mt-4" variant="accent"><Link href="/admin/academy">Open Academy admin</Link></Button>
           ) : null}
         </Card>

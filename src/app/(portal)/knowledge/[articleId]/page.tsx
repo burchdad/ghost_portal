@@ -4,13 +4,14 @@ import { PageSection } from "@/components/portal/page-section";
 import { Card } from "@/components/ui/card";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 
 export default async function KnowledgeDetailPage({ params }: { params: Promise<{ articleId: string }> }) {
   const user = await requireUser();
   const { articleId } = await params;
   const article = await getPrisma().knowledgeArticle.findUnique({ where: { id: articleId } });
   if (!article) notFound();
-  if (user.role !== "Founder" && (article.status !== "Published" || !article.visibleToRoles.includes(user.role))) redirect("/access-denied");
+  if (!hasPermission(user, "knowledge:manage") && (article.status !== "Published" || !article.visibleToRoles.includes(user.role))) redirect("/access-denied");
 
   return (
     <PageSection eyebrow={article.category} title={article.title} description={`Version ${article.version}`}>

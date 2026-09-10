@@ -14,7 +14,7 @@ export async function submitKnowledgeCheckAction(formData: FormData) {
 
   const checkId = z.string().min(1).parse(formData.get("checkId"));
   const moduleId = z.string().min(1).parse(formData.get("moduleId"));
-  const courseModule = await findVisibleModule(moduleId, user.role);
+  const courseModule = await findVisibleModule(moduleId, user.role, hasPermission(user, "academy:manage"));
   if (!courseModule?.knowledgeCheck || courseModule.knowledgeCheck.id !== checkId) throw new Error("Forbidden: knowledge check");
   const prisma = getPrisma();
   const [attempts, availableUnlock] = await Promise.all([
@@ -99,7 +99,7 @@ export async function completeAcademyModuleAction(formData: FormData) {
   const user = await requireUser();
   if (!hasPermission(user, "academy:read")) throw new Error("Forbidden: academy:read");
   const moduleId = z.string().min(1).parse(formData.get("moduleId"));
-  const courseModule = await findVisibleModule(moduleId, user.role);
+  const courseModule = await findVisibleModule(moduleId, user.role, hasPermission(user, "academy:manage"));
   if (!courseModule) throw new Error("Forbidden: module");
 
   if (courseModule.acknowledgementRequired && formData.get("acknowledgement") !== "on") {
@@ -169,7 +169,7 @@ export async function saveModuleNoteAction(formData: FormData) {
     moduleId: formData.get("moduleId"),
     body: formData.get("body")
   });
-  const courseModule = await findVisibleModule(parsed.moduleId, user.role);
+  const courseModule = await findVisibleModule(parsed.moduleId, user.role, hasPermission(user, "academy:manage"));
   if (!courseModule) throw new Error("Forbidden: module");
 
   await getPrisma().employeeModuleNote.upsert({
@@ -193,7 +193,7 @@ export async function submitEmployeeQuestionAction(formData: FormData) {
     question: formData.get("question")
   });
 
-  if (parsed.moduleId && !(await findVisibleModule(parsed.moduleId, user.role))) throw new Error("Forbidden: module");
+  if (parsed.moduleId && !(await findVisibleModule(parsed.moduleId, user.role, hasPermission(user, "academy:manage")))) throw new Error("Forbidden: module");
 
   const question = await getPrisma().employeeQuestion.create({
     data: {
@@ -371,12 +371,12 @@ export async function unlockKnowledgeCheckAttemptAction(formData: FormData) {
   revalidatePath(`/academy/modules/${parsed.moduleId}`);
 }
 
-async function findVisibleModule(moduleId: string, role: string) {
+async function findVisibleModule(moduleId: string, role: string, canManageAcademy = false) {
   return getPrisma().courseModule.findFirst({
     where: {
       id: moduleId,
       archivedAt: null,
-      ...(role === "Founder" ? {} : { published: true, audienceRoles: { has: role as never } })
+      ...(canManageAcademy ? {} : { published: true, audienceRoles: { has: role as never } })
     },
     include: {
       knowledgeCheck: {

@@ -5,13 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 
 export default async function SOPDetailPage({ params }: { params: Promise<{ sopId: string }> }) {
   const user = await requireUser();
   const { sopId } = await params;
   const sop = await getPrisma().sOPArticle.findUnique({ where: { id: sopId }, include: { steps: { orderBy: { stepNumber: "asc" } } } });
   if (!sop) notFound();
-  if (user.role !== "Founder" && (!sop.published || !sop.audienceRoles.includes(user.role))) redirect("/access-denied");
+  if (!hasPermission(user, "academy:manage") && (!sop.published || !sop.audienceRoles.includes(user.role))) redirect("/access-denied");
 
   return (
     <PageSection eyebrow="SOP Library" title={sop.title} description={sop.purpose}>

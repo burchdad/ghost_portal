@@ -41,6 +41,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
   const visibleLead = minimizeLeadForUser(user, lead);
   const lastActivity = lead.callActivities[0];
   const canSyncCrm = hasPermission(user, "crm:sync");
+  const canManageLeads = hasPermission(user, "leads:manage");
   const syncChecklist = buildSyncChecklist(visibleLead, latestConversationSummary(lead.callActivities));
 
   return (
@@ -142,7 +143,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
               <select name="leadSource" defaultValue={visibleLead.leadSource ?? "Manual Cold Call"} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
                 {leadSources.map((source) => <option key={source} value={source}>{source}</option>)}
               </select>
-              {user.role === "Founder" ? (
+              {canManageLeads ? (
                 <select name="assignedUserId" defaultValue={visibleLead.assignedUserId ?? ""} className="h-10 rounded-lg border border-white/10 bg-black/24 px-3 text-sm">
                   <option value="">Assigned caller</option>
                   {users.map((row) => <option key={row.id} value={row.id}>{row.preferredName ?? row.name}</option>)}
@@ -154,7 +155,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
               </div>
               <Button className="md:col-span-2" variant="accent">Save basic information</Button>
             </form>
-            {user.role === "Founder" ? (
+            {canManageLeads ? (
               <form id="qa-record-form" action={updateLeadTestRecordAction} className="mt-3 flex flex-wrap gap-2 border-t border-white/10 pt-3">
                 <input type="hidden" name="leadId" value={visibleLead.id} />
                 <label className="flex min-h-8 items-center gap-2 text-sm text-white/62">
@@ -312,7 +313,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ lea
         </div>
       </div>
 
-      {user.role === "Founder" ? (
+      {canManageLeads ? (
         <Card className="mt-5">
           <h3 className="font-semibold">Access Management</h3>
           <form action={grantLeadAccessAction} className="mt-4 grid gap-3 md:grid-cols-[1fr_160px_auto]">

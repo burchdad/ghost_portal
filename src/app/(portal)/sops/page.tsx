@@ -4,14 +4,16 @@ import { SimpleTable } from "@/components/portal/simple-table";
 import { Badge } from "@/components/ui/badge";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 
 export default async function SOPLibraryPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string }> }) {
   const user = await requireUser();
+  const canManageAcademy = hasPermission(user, "academy:manage");
   const filters = await searchParams;
   const sops = await getPrisma().sOPArticle.findMany({
     where: {
       archivedAt: null,
-      ...(user.role === "Founder" ? {} : { published: true, audienceRoles: { has: user.role } }),
+      ...(canManageAcademy ? {} : { published: true, audienceRoles: { has: user.role } }),
       ...(filters.category ? { category: filters.category as never } : {}),
       ...(filters.q ? { title: { contains: filters.q, mode: "insensitive" } } : {})
     },

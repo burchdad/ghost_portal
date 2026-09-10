@@ -6,6 +6,7 @@ import { z } from "zod";
 import { writeAuditLog } from "@/server/audit/audit";
 import { getPrisma } from "@/server/db/prisma";
 import { canAccessClient, canAccessLead, requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { recordActivity } from "@/server/workflows/activity";
 import { createNotification } from "@/server/workflows/notifications";
 
@@ -78,7 +79,7 @@ export async function createDraftCommunicationAction(formData: FormData) {
 
 export async function decideDraftCommunicationAction(formData: FormData) {
   const user = await requireUser();
-  if (user.role !== "Founder") throw new Error("Forbidden: Founder");
+  if (!hasPermission(user, "approvals:decide")) throw new Error("Forbidden: approvals:decide");
 
   const parsed = z.object({
     draftId: z.string().min(1),
@@ -126,7 +127,7 @@ export async function markDraftCommunicationSentAction(formData: FormData) {
   const outcome = z.string().min(1).parse(formData.get("outcome"));
   const draft = await getPrisma().draftCommunication.findUnique({ where: { id: draftId } });
   if (!draft) throw new Error("Draft not found");
-  if (draft.authorId !== user.id && user.role !== "Founder") throw new Error("Forbidden: draft");
+  if (draft.authorId !== user.id && !hasPermission(user, "approvals:decide")) throw new Error("Forbidden: draft");
   if (draft.status !== "Approved") throw new Error("Only approved communications can be marked manually sent.");
 
   await getPrisma().draftCommunication.update({

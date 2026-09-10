@@ -30,6 +30,13 @@ const stephen: AuthzUser = {
   role: "Founder"
 };
 
+const admin: AuthzUser = {
+  id: "user_admin",
+  name: "Alex Canto",
+  email: "alex@ghostai.solutions",
+  role: "Admin"
+};
+
 describe("record-level authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,6 +71,11 @@ describe("record-level authorization", () => {
     await expect(canAccessLead(stephen, "any_lead")).resolves.toBe(true);
   });
 
+  it("allows Admin to manage records without founder-only notes", async () => {
+    await expect(canAccessClient(admin, "any_client", "Manage")).resolves.toBe(true);
+    await expect(canAccessLead(admin, "any_lead", "Manage")).resolves.toBe(true);
+  });
+
   it("removes founder-only notes for Operations users", () => {
     const client = {
       id: "client_1",
@@ -80,6 +92,7 @@ describe("record-level authorization", () => {
     };
 
     expect(minimizeClientForUser(alex, client).founderOnlyNotes).toBeNull();
+    expect(minimizeClientForUser(admin, client).founderOnlyNotes).toBeNull();
     expect(minimizeClientForUser(stephen, client).founderOnlyNotes).toBe("Restricted");
   });
 

@@ -16,7 +16,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
   const { clientId } = await params;
   const missionClientId = parseMissionClientRouteId(clientId);
   if (missionClientId) {
-    if (!(user.role === "Founder" || hasPermission(user, "clients:read:all"))) redirect("/access-denied");
+    if (!hasPermission(user, "clients:read:all")) redirect("/access-denied");
     const result = await getMissionControlClientById(missionClientId);
     if (!result.client) notFound();
 
@@ -128,7 +128,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ c
           <p className="mt-3 text-sm leading-6 text-white/58">{visibleClient.founderOnlyNotes ?? "Restricted or empty."}</p>
         </Card>
       </div>
-      {user.role === "Founder" ? (
+      {hasPermission(user, "clients:manage") ? (
         <Card className="mt-5">
           <h3 className="font-semibold">Access Management</h3>
           <form action={grantClientAccessAction} className="mt-4 grid gap-3 md:grid-cols-[1fr_160px_auto]">

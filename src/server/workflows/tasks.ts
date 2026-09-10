@@ -141,7 +141,7 @@ export async function addTaskCommentAction(formData: FormData) {
   const body = z.string().min(1).parse(formData.get("body"));
   const task = await getPrisma().task.findUnique({ where: { id: taskId } });
 
-  if (!task || (user.role !== "Founder" && task.ownerId !== user.id)) throw new Error("Forbidden: task");
+  if (!task || (!hasPermission(user, "tasks:manage") && task.ownerId !== user.id)) throw new Error("Forbidden: task");
 
   const comment = await getPrisma().comment.create({
     data: {

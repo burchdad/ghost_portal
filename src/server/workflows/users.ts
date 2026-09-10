@@ -15,14 +15,15 @@ export type CreateEmployeeState = {
   temporaryPassword?: string;
 };
 
-const founderAssignableRoles: Role[] = ["Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"];
+const founderAssignableRoles: Role[] = ["Admin", "Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"];
+const adminAssignableRoles: Role[] = ["Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"];
 const operationsAssignableRoles: Role[] = ["Sales", "Marketing", "Support", "Contractor"];
 
 const createEmployeeSchema = z.object({
   name: z.string().trim().min(2, "Employee name is required."),
   preferredName: z.string().trim().optional(),
   email: z.string().trim().email("Enter a valid email address."),
-  role: z.enum(["Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"]),
+  role: z.enum(["Admin", "Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"]),
   timezone: z.string().trim().min(1).transform(normalizeTimezone).refine(isValidTimezone, "Choose a valid timezone.").default(defaultTimezone),
   status: z.enum(["Invited", "Active"]).default("Active"),
   temporaryPassword: z.string().trim().optional()
@@ -44,7 +45,7 @@ export async function createEmployeeAction(_state: CreateEmployeeState, formData
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Could not create employee." };
   }
 
-  const allowedRoles = actor.role === "Founder" ? founderAssignableRoles : operationsAssignableRoles;
+  const allowedRoles = actor.role === "Founder" ? founderAssignableRoles : actor.role === "Admin" ? adminAssignableRoles : operationsAssignableRoles;
   if (!allowedRoles.includes(parsed.data.role)) {
     return { status: "error", message: "You cannot assign that role." };
   }

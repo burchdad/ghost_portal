@@ -10,7 +10,9 @@ export default async function AdminUsersPage() {
   const user = await requirePermission("users:manage");
   const users = await getPrisma().user.findMany({ include: { role: true }, orderBy: { name: "asc" } });
   const assignableRoles = user.role === "Founder"
-    ? ["Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"]
+    ? ["Admin", "Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"]
+    : user.role === "Admin"
+      ? ["Executive", "Operations", "Sales", "Marketing", "Developer", "Support", "Finance", "Contractor", "Client"]
     : ["Sales", "Marketing", "Support", "Contractor"];
 
   return (

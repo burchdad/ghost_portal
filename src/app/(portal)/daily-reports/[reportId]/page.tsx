@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { reviewDailyReportAction } from "@/server/actions/reports";
 
 export default async function DailyReportDetailPage({ params }: { params: Promise<{ reportId: string }> }) {
@@ -11,7 +12,8 @@ export default async function DailyReportDetailPage({ params }: { params: Promis
   const { reportId } = await params;
   const report = await getPrisma().dailyReport.findUnique({ where: { id: reportId }, include: { user: true } });
   if (!report) notFound();
-  if (user.role !== "Founder" && report.userId !== user.id) redirect("/access-denied");
+  const canReviewReports = hasPermission(user, "reports:review");
+  if (!canReviewReports && report.userId !== user.id) redirect("/access-denied");
 
   return (
     <PageSection eyebrow="Report" title={`${report.user.preferredName ?? report.user.name} - ${report.reportDate.toISOString().slice(0, 10)}`} description={`Status: ${report.status}`}>
@@ -19,7 +21,7 @@ export default async function DailyReportDetailPage({ params }: { params: Promis
         <h3 className="font-semibold">Completed</h3>
         <p className="mt-3 text-sm leading-6 text-white/58">{report.completed}</p>
       </Card>
-      {user.role === "Founder" ? (
+      {canReviewReports ? (
         <Card className="mt-5">
           <h3 className="font-semibold">Founder Review</h3>
           <form action={reviewDailyReportAction} className="mt-4 grid gap-3">

@@ -74,7 +74,7 @@ export async function canAccessClient(user: AuthzUser, clientId: string, level: 
 }
 
 export async function canAccessLead(user: AuthzUser, leadId: string, level: AccessLevel = "View") {
-  if (isFounder(user)) return true;
+  if (isFounder(user) || hasPermission(user, "leads:manage")) return true;
   if (!hasPermission(user, "leads:read:assigned")) return false;
 
   const access = await getPrisma().leadAccess.findUnique({

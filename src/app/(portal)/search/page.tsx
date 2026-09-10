@@ -12,9 +12,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const user = await requireUser();
   const params = await searchParams;
   const query = (params.q ?? "").trim();
-  const canReadAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
+  const canReadAllClients = hasPermission(user, "clients:read:all");
   const canReadAssignedClients = hasPermission(user, "clients:read:assigned");
   const canReadAssignedLeads = hasPermission(user, "leads:read:assigned");
+  const canManageTasks = hasPermission(user, "tasks:manage");
+  const canManageLeads = hasPermission(user, "leads:manage");
+  const canManageAcademy = hasPermission(user, "academy:manage");
+  const canManageKnowledge = hasPermission(user, "knowledge:manage");
 
   const empty = query.length < 2;
   const [tasks, leads, localClients, sops, knowledge, missionClients, missionTools] = empty
@@ -22,7 +26,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     : await Promise.all([
         getPrisma().task.findMany({
           where: {
-            ...(user.role === "Founder" ? { archivedAt: null } : { ownerId: user.id, archivedAt: null }),
+            ...(canManageTasks ? { archivedAt: null } : { ownerId: user.id, archivedAt: null }),
             OR: [
               { title: { contains: query, mode: "insensitive" } },
               { description: { contains: query, mode: "insensitive" } }
@@ -34,7 +38,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         canReadAssignedLeads
           ? getPrisma().lead.findMany({
               where: {
-                ...leadAccessWhere(user.id, user.role),
+                ...leadAccessWhere(user.id, user.role, canManageLeads),
                 OR: [
                   { company: { contains: query, mode: "insensitive" } },
                   { contactName: { contains: query, mode: "insensitive" } },
@@ -49,7 +53,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         canReadAssignedClients
           ? getPrisma().client.findMany({
               where: {
-                ...clientAccessWhere(user.id, user.role, canReadAllClients),
+                ...clientAccessWhere(user.id, canReadAllClients),
                 company: { contains: query, mode: "insensitive" }
               },
               orderBy: [{ updatedAt: "desc" }],
@@ -59,7 +63,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         getPrisma().sOPArticle.findMany({
           where: {
             archivedAt: null,
-            ...(user.role === "Founder" ? {} : { published: true, audienceRoles: { has: user.role } }),
+            ...(canManageAcademy ? {} : { published: true, audienceRoles: { has: user.role } }),
             title: { contains: query, mode: "insensitive" }
           },
           orderBy: [{ updatedAt: "desc" }],
@@ -68,7 +72,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         getPrisma().knowledgeArticle.findMany({
           where: {
             archivedAt: null,
-            ...(user.role === "Founder" ? {} : { status: "Published", visibleToRoles: { has: user.role } }),
+            ...(canManageKnowledge ? {} : { status: "Published", visibleToRoles: { has: user.role } }),
             title: { contains: query, mode: "insensitive" }
           },
           orderBy: [{ updatedAt: "desc" }],
@@ -133,12 +137,12 @@ function ResultGroup({ title, items }: { title: string; items: Array<{ href: str
   );
 }
 
-function leadAccessWhere(userId: string, role: string): Prisma.LeadWhereInput {
-  return role === "Founder" ? { archivedAt: null } : { archivedAt: null, access: { some: { userId } } };
+function leadAccessWhere(userId: string, role: string, canManageLeads = false): Prisma.LeadWhereInput {
+  return role === "Founder" || canManageLeads ? { archivedAt: null } : { archivedAt: null, access: { some: { userId } } };
 }
 
-function clientAccessWhere(userId: string, role: string, canReadAllClients: boolean): Prisma.ClientWhereInput {
-  return role === "Founder" || canReadAllClients ? { archivedAt: null } : { archivedAt: null, access: { some: { userId } } };
+function clientAccessWhere(userId: string, canReadAllClients: boolean): Prisma.ClientWhereInput {
+  return canReadAllClients ? { archivedAt: null } : { archivedAt: null, access: { some: { userId } } };
 }
 
 function matchesMissionRecord(record: { clientName: string; websiteUrl: string; services: string[] }, query: string) {

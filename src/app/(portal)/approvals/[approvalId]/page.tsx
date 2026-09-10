@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { decideApprovalAction } from "@/server/workflows/approvals";
 
 export default async function ApprovalDetailPage({ params }: { params: Promise<{ approvalId: string }> }) {
@@ -11,7 +12,8 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
   const { approvalId } = await params;
   const approval = await getPrisma().approval.findUnique({ where: { id: approvalId }, include: { requester: true } });
   if (!approval) notFound();
-  if (user.role !== "Founder" && approval.requesterId !== user.id) redirect("/access-denied");
+  const canDecideApprovals = hasPermission(user, "approvals:decide");
+  if (!canDecideApprovals && approval.requesterId !== user.id) redirect("/access-denied");
 
   return (
     <PageSection eyebrow="Approval" title={approval.summary} description={approval.businessImpact}>
@@ -19,7 +21,7 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
         <h3 className="font-semibold">Recommendation</h3>
         <p className="mt-3 text-sm leading-6 text-white/58">{approval.recommendation}</p>
       </Card>
-      {user.role === "Founder" && approval.requesterId !== user.id ? (
+      {canDecideApprovals && approval.requesterId !== user.id ? (
         <Card className="mt-5">
           <h3 className="font-semibold">Decision</h3>
           <form action={decideApprovalAction} className="mt-4 grid gap-3">

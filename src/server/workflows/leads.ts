@@ -68,7 +68,7 @@ async function createLeadFromFormData(formData: FormData) {
     isTestRecord: formData.get("isTestRecord") === "on"
   });
   const contact = parseContactMethod(parsed.contactMethod);
-  const assignedUserId = user.role === "Founder" || parsed.assignedUserId === user.id ? parsed.assignedUserId : user.id;
+  const assignedUserId = hasPermission(user, "leads:manage") || parsed.assignedUserId === user.id ? parsed.assignedUserId : user.id;
   const startCall = formData.get("intent") === "startCall";
 
   const prisma = getPrisma();
@@ -185,13 +185,13 @@ export async function updateLeadOperationalAction(formData: FormData) {
       location: emptyToNull(parsed.location),
       timezone: emptyToNull(parsed.timezone),
       leadSource: parsed.leadSource,
-      assignedUserId: user.role === "Founder" ? parsed.assignedUserId : undefined,
+      assignedUserId: hasPermission(user, "leads:manage") ? parsed.assignedUserId : undefined,
       notes: emptyToNull(parsed.notes),
       nextAction: emptyToNull(parsed.nextAction),
       followUpDate: parsed.followUpDate
     }
   });
-  if (user.role === "Founder" && parsed.assignedUserId) {
+  if (hasPermission(user, "leads:manage") && parsed.assignedUserId) {
     await getPrisma().leadAccess.upsert({
       where: { userId_leadId: { userId: parsed.assignedUserId, leadId: parsed.leadId } },
       update: { access: "Edit" },

@@ -1,5 +1,6 @@
 export const roles = [
   "Founder",
+  "Admin",
   "Executive",
   "Operations",
   "Sales",
@@ -63,6 +64,7 @@ export type Permission = (typeof permissions)[number];
 
 export const rolePermissions: Record<Role, Permission[]> = {
   Founder: [...permissions],
+  Admin: permissions.filter((permission) => !["credentials:read", "finance:read", "permissions:manage"].includes(permission)),
   Executive: [
     "analytics:read",
     "academy:manage",

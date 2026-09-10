@@ -52,7 +52,8 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
   const trialSubject = await getTrialSubjectForViewer(user);
   const subjectName = trialSubject.preferredName ?? trialSubject.name;
   const isFounderView = user.role === "Founder";
-  const canSeeAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
+  const canSeeAllClients = hasPermission(user, "clients:read:all");
+  const canManageLeads = hasPermission(user, "leads:manage");
 
   const [taskRows, clientRows, leadRows, announcementRows, approvalRows, modules, completions, reports, activityRows, activeShift, todayReport] = await Promise.all([
     prisma.task.findMany({
@@ -75,7 +76,7 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
     }),
     prisma.lead.findMany({
       where:
-        user.role === "Founder"
+        canManageLeads
           ? { archivedAt: null }
           : {
               archivedAt: null,
@@ -102,7 +103,7 @@ export async function getDashboardSnapshot(user: SessionUser): Promise<Dashboard
       take: 5
     }),
     prisma.approval.findMany({
-      where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id },
+      where: hasPermission(user, "approvals:decide") ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id },
       orderBy: [{ priority: "desc" }, { deadline: "asc" }],
       take: 5
     }),
@@ -257,14 +258,14 @@ export async function buildNovaSummary(user: SessionUser) {
   const subjectName = trialSubject.preferredName ?? trialSubject.name;
   const [taskCount, approvalCount, supportTicketCount] = await Promise.all([
     prisma.task.count({
-      where: user.role === "Founder" ? { ownerId: trialSubject.id, archivedAt: null } : { ownerId: user.id, archivedAt: null }
+      where: hasPermission(user, "tasks:manage") ? { ownerId: trialSubject.id, archivedAt: null } : { ownerId: user.id, archivedAt: null }
     }),
     prisma.approval.count({
-      where: user.role === "Founder" ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id, status: { in: ["Open", "InReview"] } }
+      where: hasPermission(user, "approvals:decide") ? { status: { in: ["Open", "InReview"] } } : { requesterId: user.id, status: { in: ["Open", "InReview"] } }
     }),
     prisma.feedbackSubmission.count({
       where:
-        user.role === "Founder"
+        hasPermission(user, "support:triage")
           ? { status: { in: ["New", "Reviewing", "Planned", "InProgress"] } }
           : { submittedById: user.id, status: { in: ["New", "Reviewing", "Planned", "InProgress"] } }
     })

@@ -62,12 +62,12 @@ async function assertAttachmentTargetAccess(
 
   if (target.taskId) {
     const task = await getPrisma().task.findUnique({ where: { id: target.taskId } });
-    if (!task || (user.role !== "Founder" && !canModifyTask(user, task))) throw new Error("Forbidden: file task target");
+    if (!task || (!hasPermission(user, "tasks:manage") && !canModifyTask(user, task))) throw new Error("Forbidden: file task target");
   }
 
   if (target.approvalId) {
     const approval = await getPrisma().approval.findUnique({ where: { id: target.approvalId } });
-    if (!approval || (user.role !== "Founder" && approval.requesterId !== user.id)) throw new Error("Forbidden: file approval target");
+    if (!approval || (!hasPermission(user, "approvals:decide") && approval.requesterId !== user.id)) throw new Error("Forbidden: file approval target");
   }
 
   if (target.reportId) {

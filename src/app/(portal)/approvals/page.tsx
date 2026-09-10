@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/portal/date-time-controls";
 import { getPrisma } from "@/server/db/prisma";
 import { requireUser } from "@/server/permissions/authorize";
+import { hasPermission } from "@/server/permissions/roles";
 import { createApprovalRequestAction } from "@/server/workflows/approvals";
 
 export default async function ApprovalsPage() {
   const user = await requireUser();
+  const canDecideApprovals = hasPermission(user, "approvals:decide");
   const approvals = await getPrisma().approval.findMany({
-    where: user.role === "Founder" ? {} : { requesterId: user.id },
+    where: canDecideApprovals ? {} : { requesterId: user.id },
     include: { requester: true },
     orderBy: [{ status: "asc" }, { deadline: "asc" }]
   });

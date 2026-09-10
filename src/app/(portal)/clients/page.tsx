@@ -10,13 +10,13 @@ import { hasPermission } from "@/server/permissions/roles";
 
 export default async function ClientsPage() {
   const user = await requireUser();
-  const canReadAllClients = user.role === "Founder" || hasPermission(user, "clients:read:all");
+  const canReadAllClients = hasPermission(user, "clients:read:all");
   const missionControl = canReadAllClients ? await getMissionControlClients() : null;
   const localClients = missionControl?.ok
     ? []
     : await getPrisma().client.findMany({
     where:
-      user.role === "Founder"
+      hasPermission(user, "clients:manage") || canReadAllClients
         ? { archivedAt: null }
         : {
             archivedAt: null,
