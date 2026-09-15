@@ -30,10 +30,17 @@ export async function loginAction(_: { error?: string } | undefined, formData: F
     return { error: "Too many login attempts. Try again later." };
   }
 
-  const user = await getPrisma().user.findUnique({
+  const canonicalUser = await getPrisma().user.findUnique({
     where: { email },
     include: { role: true }
   });
+  const alias = canonicalUser
+    ? null
+    : await getPrisma().userLoginAlias.findUnique({
+        where: { email },
+        include: { user: { include: { role: true } } }
+      });
+  const user = canonicalUser ?? alias?.user ?? null;
 
   const valid = user && verifyPassword(parsed.data.password, user.passwordHash);
 
@@ -41,7 +48,7 @@ export async function loginAction(_: { error?: string } | undefined, formData: F
     await writeAuditLog({
       action: "auth.failed_login",
       entity: "User",
-      after: { email }
+      after: { email, reason: user ? "invalid_password" : "unknown_email" }
     });
     return { error: "Email or password is incorrect." };
   }

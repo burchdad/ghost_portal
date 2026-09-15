@@ -334,6 +334,7 @@ model User {
   role                     Role                          @relation(fields: [roleId], references: [id])
   sessions                 Session[]
   accounts                 Account[]
+  loginAliases             UserLoginAlias[]
   assignedTasks            Task[]                        @relation("TaskOwner")
   createdTasks             Task[]                        @relation("TaskCreator")
   approvedTasks            Task[]                        @relation("TaskApprover")
@@ -388,6 +389,17 @@ model User {
 
   @@index([status])
   @@index([roleId])
+}
+
+model UserLoginAlias {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Session {
